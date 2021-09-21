@@ -44,8 +44,6 @@ full_Snyder <- ODIS::full_Snyder
 full_Snyder$ex <- as.matrix(full_Snyder$ex)
 snyder_readcounts <- full_Snyder$ex
 
-row.names(snyder_readcounts) <- full_Snyder$featInfo$ENSEMBL
-
 ```
 
 
@@ -53,7 +51,7 @@ MOUSE ENSEMBL TO MOUSE ENTREZ GENE CONVERSION + MGI SYMBOL
 ```{r}
 
 SnyderMouseGenes <- full_Snyder$featInfo$ENSEMBL
-tmp_snyder <- ODIS::Mouse2Human(SnyderMouseGenes) #need human homologue to run gsea
+tmp_snyder <- Mouse2Human(SnyderMouseGenes) #need human homologue to run gsea
 head(tmp_snyder)
 #tmp_snyder <- lapply(tmp_snyder,as.character)
 summary(tmp_snyder)
@@ -69,8 +67,24 @@ head(full_Snyder$featInfo)
 
 NMF
 ```{r}
-non_zero_matrix <- snyder_readcounts
+snyder_readcounts <- as.data.frame(snyder_readcounts)
+snyder_readcounts <- tibble::rownames_to_column(snyder_readcounts, "ENSEMBL")
+snyder_readcounts <- plyr::join(snyder_readcounts, full_Snyder$featInfo)
+my_entrez_readcounts <- snyder_readcounts[,c(2:29, 33)]
+my_entrez_readcounts$ENTREZ <- as.character(my_entrez_readcounts$ENTREZ)
+
+my_entrez_readcounts <- aggregate(x=my_entrez_readcounts[,-which(colnames(my_entrez_readcounts) == "ENTREZ")],
+                                  by = list(ENTREZ= my_entrez_readcounts$ENTREZ),
+                                  FUN = sum)
+
+
+non_zero_matrix <- my_entrez_readcounts
+non_zero_matrix <- data.frame(non_zero_matrix[,-1], row.names = non_zero_matrix[,1])
+non_zero_matrix <- as.matrix(non_zero_matrix)
 non_zero_matrix[non_zero_matrix<1] <- 0.1; non_zero_matrix
+
+
+
 
 library(NMF)
 
@@ -87,14 +101,20 @@ head(h)
 
 saveRDS(h, "./Snyder_NMF.rds")
 
-head(Snyder_NMF)
 
 ```
 
 Make GSEA friendly "gene_list"
 ```{r}
-df1 <- Snyder_NMF[,1]
+Snyder_NMF <- readRDS("./Snyder_NMF.rds")
+head(Snyder_NMF)
+
+library(BBmisc)
+nmf_norm <- normalize(Snyder_NMF, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")
+head(nmf_norm)
+df1 <- nmf_norm[,1]
 head(df1)
+
 ```
 
 
@@ -131,9 +151,13 @@ NMF GSEA
 gene_list <- df1
 head(gene_list, n = 5)
 
+gene_list = sort(gene_list, decreasing = TRUE)
+gene_list = gene_list[!duplicated(names(gene_list))]
+head(gene_list, n = 5)
+
 for(i in list_of_gmt_files){
   print(i)
-  res <- ODIS::ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.05) ## need to structure outputs correctly
+  res <- ODIS::ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.95) ## need to structure outputs correctly
 }
 
 
