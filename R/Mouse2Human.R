@@ -24,6 +24,6 @@ Mouse2Human <- function(MouseGenes){
                                              "entrezgene_id"), 
                              martL = human, 
                              uniqueRows = TRUE)
-  colnames(genesMousetoHuman) <- c("Mouse.Gene_ID", "MGI", "Human.Gene_ID", "HGNC", "ENTREZ")
+  colnames(genesMousetoHuman) <- c("ENSEMBL", "MGI", "Human.Gene_ID", "HGNC", "ENTREZ")
   return(genesMousetoHuman) 
 }
