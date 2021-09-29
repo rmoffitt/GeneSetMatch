@@ -228,58 +228,100 @@ list_of_gmt_files <- ODIS::convert_msigdbr_obj_to_gmt_file(list_of_sets)
 ```
 
 
-NMF GSEA, done separately on norm. and norm_org
-```{r}
+#NMF GSEA, done separately on norm. and norm_org, total nonsense
+<!-- ```{r} -->
 
-gene_list <- df2
-head(gene_list, n = 5)
+<!-- gene_list <- df2 -->
+<!-- head(gene_list, n = 5) -->
 
-gene_list = sort(gene_list, decreasing = TRUE)
-gene_list = gene_list[!duplicated(names(gene_list))]
-head(gene_list, n = 5)
+<!-- gene_list = sort(gene_list, decreasing = TRUE) -->
+<!-- gene_list = gene_list[!duplicated(names(gene_list))] -->
+<!-- head(gene_list, n = 5) -->
 
-for(i in list_of_gmt_files){
-  print(i)
-  res_org <- ODIS::ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.05) ## need to structure outputs correctly
-}
+<!-- for(i in list_of_gmt_files){ -->
+<!--   print(i) -->
+<!--   res_org <- ODIS::ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.05) ## need to structure outputs correctly -->
+<!-- } -->
 
 
-summary(res)
-summary(res_org)
-saveRDS(res, "./Snyder_NMF_res.rds")
-saveRDS(res_org, "./Snyder_NMF_res_org.rds")
-```
+<!-- summary(res) -->
+<!-- summary(res_org) -->
+<!-- saveRDS(res, "./Snyder_NMF_res.rds") -->
+<!-- saveRDS(res_org, "./Snyder_NMF_res_org.rds") -->
+<!-- ``` -->
 
-Gsea on both nmf all and org in one for loops
+Gsea on All three vectors of nmf
 ```{r}
 
 snyder_nmfs <- list()
 
-for(Y in list("norm" = nmf_norm,
-              "norm_org" = nmf_norm_org)
+for(Y in list(list("V1" = nmf_norm[,1, drop = F]),
+              list("V2" = nmf_norm[,2, drop = F]),
+              list("V3" = nmf_norm[,3, drop = F])) #drop = f MEANS KEEP IT AS A MATRIX WITH COLLUMNS AND 
 ){
-  gene_list <- Y[,1]
+  X <- Y[[1]]
   
+  gene_list = X[,1]
   gene_list = sort(gene_list, decreasing = TRUE)
   gene_list = gene_list[!duplicated(names(gene_list))]
   head(gene_list, n = 5)
   
+
+  
   for(i in list_of_gmt_files){
     print(i)
     res <- ODIS::ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.05)
-    snyder_nmfs[row.names(Y)][[i]] <- res  ## find a way to reference "nmf_norm" and "nmf_norm_org"
+    snyder_nmfs[[names(Y)]][[i]] <- res  ## find a way to reference "nmf_norm" and "nmf_norm_org"
   }
-  snyder_nmfs[row.names(Y)]$orig_matrix <- row.names(Y) ##find a way to create "orig matrix" object with NMF output
+  #orig_matrix must be a data frame
+  snyder_nmfs[[names(Y)]]$orig_matrix <- as.data.frame(list(log2FoldChange = gene_list,
+                                                            ENTREZID = row.names(X),
+                                                            SYMBOL = row.names(X)))
+  
 }
 
-saveRDS(res, "./Snyder_NMF_both.rds")
-#res both is the same as res_org, need to structure output correctly it where its fucking up
+summary(snyder_nmfs)
+summary(snyder_nmfs$V2)
+summary(snyder_nmfs$V2$orig_matrix)
+head(snyder_nmfs$V2$`./myC1.gmt`$Results)
+str(snyder_nmfs$V1$orig_matrix$log2FoldChange)
 
-
+saveRDS(snyder_nmfs, "./Snyder_NMF_V123.rds")
 
 ```
 
+Multi color heatmaps
+```{r}
+res_nmf <- readRDS("./Snyder_NMF_V123.rds")
+ODIS.NMF.Heatmaps(res_nmf)
+
+```
+
+Hoe does V1, V2, V3 pathways and leading edches overlap in nmf_norm overlap and how can we plot it on one heatmap such that it makes sense?
+```{r}
+#maybe make dfs where cols are pathways ond row names are leading edges? color code by V1, V2, C3?
+
+a1_lead <- res_nmf$V1$`./myC2_KEGG.gmt`$Results$leadingEdge
+a2_lead <- res_nmf$V2$`./myC2_KEGG.gmt`$Results$leadingEdge
+a3_lead <- res_nmf$V3$`./myC2_KEGG.gmt`$Results$leadingEdge
+lead_df <- list("V1 lead" = a1_lead,
+                "V2 lead" = a2_lead,
+                "V3 lead" = a3_lead)
+
+a1_path <- res_nmf$V1$`./myC2_KEGG.gmt`$Results$pathway
+a2_path <- res_nmf$V2$`./myC2_KEGG.gmt`$Results$pathway
+a3_path <- res_nmf$V3$`./myC2_KEGG.gmt`$Results$pathway
+path_df <- list("V1 path" = a1_path,
+                "V2 path" = a2_path,
+                "V3 path" = a3_path)
+
+summary(path_df)
+summary(lead_df)
+```
+
+
 GENE VS GENE SET HEATMAPS
 ```{r}
-ODIS::ODIS.Heatmaps(res)
+res_nmf <- readRDS("./Snyder_NMF_V123.rds")
+ODIS::ODIS.Heatmaps(res_nmf)
 ```
