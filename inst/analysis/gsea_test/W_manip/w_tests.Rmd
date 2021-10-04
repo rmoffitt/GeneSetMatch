@@ -1,0 +1,178 @@
+---
+title: "W test"
+author: "Margaret Hall"
+date: "9/23/2021"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(fgsea)
+library(NMF)
+library(msigdbr)
+library(gplots)
+library(pdist)
+load("~/ODIS2/data/full_snyder.RData")
+load("tmp.Rdata")
+```
+
+```{r create ODIS genesets}
+#false since genesets are already created in this folder, instead loads them.
+if(FALSE){
+C1_df = msigdbr(species = "Mus musculus", category = "C1", subcategory = "")
+C2_df = msigdbr(species = "Mus musculus", category = "C2", subcategory = "CGP")
+C2KEGG_df = msigdbr(species = "Mus musculus", category = "C2", subcategory = "CP:KEGG")
+C3_df = msigdbr(species = "Mus musculus", category = "C3", subcategory = "MIR:MIRDB")
+C4_df = msigdbr(species = "Mus musculus", category = "C4", subcategory = "CGN")
+C5_df = msigdbr(species = "Mus musculus", category = "C5", subcategory = "BP")
+C6_df = msigdbr(species = "Mus musculus", category = "C6", subcategory = "")
+C7_df = msigdbr(species = "Mus musculus", category = "C7", subcategory = "IMMUNESIGDB")
+C8_df = msigdbr(species = "Mus musculus", category = "H", subcategory = "")
+
+list_of_sets = list(C1 = C1_df,
+                    C2 = C2_df,
+                    C2_KEGG = C2KEGG_df,
+                    C3 = C3_df,
+                    C4 = C4_df,
+                    C5 = C5_df,
+                    C6 = C6_df,
+                    C7 = C7_df,
+                    C8 = C8_df)
+
+source("~/ODIS2/R/convert_msigdbr_obj_to_gmt_file.R")
+list_of_gmt_files <- convert_msigdbr_obj_to_gmt_file(list_of_sets)
+save(list_of_gmt_files, file="gmt.Rdata")
+rm(list = ls())
+}
+
+load("gmt.Rdata")
+```
+
+```{r nmf}
+sdata <- full_Snyder$ex
+sdata <- sdata[(rowSums(sdata) != 0),]
+results <- NMF::nmf(sdata, 4, seed = 123, .options="p4")
+consensusmap(results)
+clusters <- predict(results)
+
+#supply clusters to full_snyder for deseq2 use?
+full_Snyder$sampInfo$nmf_clust <- clusters
+```
+
+```{r get W with entrezid name}
+snyder_gene_list <-  as.data.frame(results@fit@W)
+snyder_gene_list$ENSEMBL <- row.names(snyder_gene_list)
+snyder_gene_list <- merge(snyder_gene_list, tmp_snyder, by="ENSEMBL")
+
+to.keep <- which(!is.na(snyder_gene_list$ENTREZID))
+snyder_gene_list <- snyder_gene_list[to.keep,]
+snyder_gene_list = snyder_gene_list[!duplicated(snyder_gene_list$ENTREZID),]
+
+entrezid <- snyder_gene_list$ENTREZID
+row.names(snyder_gene_list) <- snyder_gene_list$ENTREZID
+W <- subset(snyder_gene_list, select = -c(ENSEMBL, ENTREZID, SYMBOL))
+```
+
+```{r DESeq2-like normalization}
+normW <- log(W)
+normW <- normW[is.finite(rowSums(normW)),]
+geneMean <- apply(normW, 1, mean)
+
+normW <- normW - geneMean
+sampleMean <- t(apply(normW, 2, mean))
+scaling <- exp(sampleMean)
+for(sample in 1:ncol(W)){
+    normW[sample] <- W[sample]/scaling[sample]
+}
+
+#can multiply H by 1/scaling to maintain the NMF matrix... if needed...
+```
+
+```{r log2fc on deseq norm}
+W1 <- normW[,1]
+names(W1) <- row.names(normW)
+fc <- data.frame(matrix(nrow = nrow(normW), ncol = length(normW)))
+colnames(fc) <- names(normW)
+log2fc <- data.frame(matrix(nrow = nrow(normW), ncol = length(normW)))
+colnames(log2fc) <- names(normW)
+
+#fc = A/B
+#log2fc = log2(A/B)
+for (sample in 1:ncol(normW)) {
+    print(sample)
+    curCol <- normW[,sample]
+    otherCol <- normW[,-c(sample)]
+    otherCol <- apply(otherCol, 1, mean)
+    
+    fc[,sample] <- curCol/otherCol
+    log2fc[,sample] <- log2(fc[,sample])
+}
+rownames(fc) <- rownames(normW)
+rownames(log2fc) <- rownames(normW)
+```
+
+```{r ODIS GSEA}
+snyder_outputs <- list()
+
+#metasample <- results@fit@W[,1]
+metasample <- log2fc[,2]
+snyder_gene_list <-  as.data.frame(metasample)
+
+entrezid <- row.names(snyder_gene_list)
+snyder_gene_list <- snyder_gene_list$metasample
+names(snyder_gene_list) <- entrezid
+snyder_gene_list = sort(snyder_gene_list, decreasing = TRUE)
+
+for(i in list_of_gmt_files){
+    print(i)
+    source("~/ODIS2/R/ODISGSEA.R")
+    res <- ODISGSEA(gene_list = snyder_gene_list, theGoFile = i, pval = 0.05)
+    snyder_outputs[["Snyder"]][[i]] <- res ## need to structure outputs correctly
+}
+
+snyder_outputs[["Snyder"]]$orig_matrix <- as.data.frame(list(log2FoldChange = snyder_gene_list,
+                                                            ENTREZID = names(snyder_gene_list),
+                                                            SYMBOL = names(snyder_gene_list)))
+
+
+
+save(snyder_outputs, file="output.Rdata")
+```
+
+doesn't work on metasample 1 for some reason, but all others seem fine.
+```{r ODIS heatmap}
+load("output.Rdata")
+source("~/ODIS2/R/ODIS.NMF.Heatmaps.R")
+res <- ODIS.NMF.Heatmaps(snyder_outputs)
+```
+
+
+
+
+
+
+
+
+
+```{r seperate metasamples}
+W1 <- W[,1]
+names(W1) <- row.names(W)
+W2 <- W[,2]
+names(W2) <- row.names(W)
+W3 <- W[,3]
+names(W3) <- row.names(W)
+W4 <- W[,4]
+names(W4) <- row.names(W)
+```
+
+```{r simple fgsea}
+gmt = fgsea::gmtPathways(i)
+
+
+w.order <- W1
+w.order <- sort(w.order, decreasing=TRUE)
+
+fgsea.res <- fgsea(pathways = gmt, 
+                   stats    = w.order,
+                   minSize  = 15,
+                   maxSize  = 500)
+```

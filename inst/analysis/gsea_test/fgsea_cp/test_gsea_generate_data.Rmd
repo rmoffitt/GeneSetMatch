@@ -1,0 +1,167 @@
+---
+title: "gsea tests"
+author: "Margaret Hall"
+date: "9/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#knitr::opts_chunk$set(echo = TRUE)
+
+library(TCGAbiolinks)
+library(dplyr)
+library(msigdbr)
+library(DESeq2)
+library(clusterProfiler)
+library(DOSE)
+
+library(biomaRt)
+library(NMF)
+library(org.Hs.eg.db)
+library(org.Mm.eg.db)
+library(tidyr)
+```
+
+```{r data download}
+#previous code for running on TCGA data
+if(FALSE){
+  query <- GDCquery(project = "TCGA-BRCA",
+                  data.category = "Gene expression",
+                  data.type = "Gene expression quantification",
+                  platform = "Illumina HiSeq", 
+                  file.type  = "results",
+                  experimental.strategy = "RNA-Seq",
+                  legacy = TRUE)
+query %>% GDCdownload()
+data <- query %>% GDCprepare() %>% assay()
+
+data.matrix <- data[(rowSums(data) != 0),]
+data.reduce <- data.matrix[order(rowVars(data.matrix), decreasing=TRUE),]
+data.reduce <- data.reduce[1:5000,]
+
+save(data.reduce, file="data_reduce.Rdata", compress = TRUE)
+rm(list = ls())
+}
+```
+
+Uses the Snyder data, however uses only a subset of the 1000 most variable genes to speed up processing.
+```{r Snyder load}
+load("~/ODIS2/data/full_snyder.RData")
+
+full_Snyder$ex <- as.matrix(full_Snyder$ex)
+data <- full_Snyder$ex
+
+#row.names(data.matrix) <- full_Snyder$featInfo$ENSEMBL
+data.matrix <- data[(rowSums(data) != 0),]
+data.reduce <- data.matrix[order(rowVars(data.matrix), decreasing=TRUE),]
+data.reduce <- data.reduce[1:1000,]
+```
+
+MOUSE ENSEMBL TO MOUSE ENTREZ GENE CONVERSION + MGI SYMBOL
+from snyder pipeline, includes gene names as entrez ID
+```{r mouse genes}
+load("~/ODIS2/data/full_snyder.RData")
+SnyderMouseGenes <- full_Snyder$featInfo$ENSEMBL
+#tmp_snyder <- ODIS::MouseENS2MouseENT(SnyderMouseGenes)
+source("~/ODIS2/R/MouseENS2MouseENT.R")
+tmp_snyder <- MouseENS2MouseENT(SnyderMouseGenes)
+head(tmp_snyder)
+#tmp_snyder <- lapply(tmp_snyder,as.character)
+summary(tmp_snyder)
+head(tmp_snyder)
+str(tmp_snyder)
+tmp_snyder <- as.data.frame(tmp_snyder)
+
+full_Snyder$featInfo <- as.data.frame(full_Snyder$featInfo)
+full_Snyder$featInfo <- merge(full_Snyder$featInfo, tmp_snyder)
+summary(full_Snyder$featInfo)
+head(full_Snyder$featInfo)
+```
+
+ALL MY SETS + CONVERSION OF LIST OF SENTS INTO .GMT FILES
+from snyder pipeline, generate a list of gmt files for ODIS gsea
+```{r}
+
+C1_df = msigdbr(species = "Mus musculus", category = "C1", subcategory = "")
+C2_df = msigdbr(species = "Mus musculus", category = "C2", subcategory = "CGP")
+C2KEGG_df = msigdbr(species = "Mus musculus", category = "C2", subcategory = "CP:KEGG")
+C3_df = msigdbr(species = "Mus musculus", category = "C3", subcategory = "MIR:MIRDB")
+C4_df = msigdbr(species = "Mus musculus", category = "C4", subcategory = "CGN")
+C5_df = msigdbr(species = "Mus musculus", category = "C5", subcategory = "BP")
+C6_df = msigdbr(species = "Mus musculus", category = "C6", subcategory = "")
+C7_df = msigdbr(species = "Mus musculus", category = "C7", subcategory = "IMMUNESIGDB")
+C8_df = msigdbr(species = "Mus musculus", category = "H", subcategory = "")
+
+list_of_sets = list(C1 = C1_df,
+                    C2 = C2_df,
+                    C2_KEGG = C2KEGG_df,
+                    C3 = C3_df,
+                    C4 = C4_df,
+                    C5 = C5_df,
+                    C6 = C6_df,
+                    C7 = C7_df,
+                    C8 = C8_df)
+
+source("~/ODIS2/R/convert_msigdbr_obj_to_gmt_file.R")
+list_of_gmt_files <- convert_msigdbr_obj_to_gmt_file(list_of_sets)
+save(list_of_gmt_files, file="gmt.Rdata")
+```
+
+```{r create genesets as GMT}
+#previously used code replaced by above chunk that creates gmt file of all pathways
+if(F){
+  all_gene_sets <- msigdbr(species = "mouse")
+  
+  all_gene_set <- all_gene_sets %>% dplyr::select("gs_name", "entrez_gene")
+  all_gene_set <- all_gene_set %>% unique()
+  pathway_names <- unique(all_gene_set$gs_name)
+  
+  gene_sets_listed <- NULL
+  temp <- NULL
+  count <- 1
+  cur_path <- all_gene_set$gs_name[1]
+  for(i in 1:nrow(all_gene_set)){
+    if(all_gene_set$gs_name[i] == cur_path){
+      temp <- c(temp, all_gene_set$entrez_gene[i])
+    }
+    else{
+      gene_sets_listed[[count]] <- temp
+      count <- count + 1 
+      temp <- all_gene_set$entrez_gene[i]
+      cur_path <- all_gene_set$gs_name[i]
+    }
+    
+    if(i == nrow(all_gene_set)){
+      gene_sets_listed[[count]] <- temp
+    }
+  }
+  
+  names(gene_sets_listed) <- pathway_names
+  #save(gene_sets_listed, file = "geneset.Rdata", compress = TRUE)
+  #rm(list = ls())
+}
+```
+
+preforms NMF on Snyder data, using 2 ranks for simple comparison
+```{r NMF}
+results <- NMF::nmf(data.reduce, 2)
+consensusmap(results)
+
+
+W <- as.data.frame(results@fit@W)
+W$ENSEMBL <- row.names(W)
+W <- merge(W, tmp_snyder, by="ENSEMBL")
+
+to.keep <- which(!is.na(W$ENTREZID))
+W <- W[to.keep,]
+W = W[!duplicated(W$ENTREZID),]
+
+#entrezid <- snyder_gene_list$ENTREZID
+#snyder_gene_list <- snyder_gene_list$metasample
+row.names(W) <- W$ENTREZID
+
+
+save(W, file = "snyder_w.Rdata")
+rm(list = ls())
+# saved file is loaded in gsea_opt_from_save.Rmd to test different gsea packages/algorithms
+```
