@@ -44,16 +44,31 @@ full_Snyder <- ODIS::full_Snyder
 full_Snyder$ex <- as.matrix(full_Snyder$ex)
 snyder_readcounts <- full_Snyder$ex
 
-row.names(snyder_readcounts) <- full_Snyder$featInfo$ENSEMBL
-
 ```
 
 
 MOUSE ENSEMBL TO MOUSE ENTREZ GENE CONVERSION + MGI SYMBOL
+# ```{r}
+# 
+# SnyderMouseGenes <- full_Snyder$featInfo$ENSEMBL
+# tmp_snyder <- Mouse2Human(SnyderMouseGenes) #need human homologue to run gsea
+# head(tmp_snyder)
+# #tmp_snyder <- lapply(tmp_snyder,as.character)
+# summary(tmp_snyder)
+# head(tmp_snyder)
+# str(tmp_snyder)
+# tmp_snyder <- as.data.frame(tmp_snyder)
+# 
+# full_Snyder$featInfo <- as.data.frame(full_Snyder$featInfo)
+# full_Snyder$featInfo <- merge(full_Snyder$featInfo, tmp_snyder)
+# summary(full_Snyder$featInfo)
+# head(full_Snyder$featInfo)
+# ```
+
 ```{r}
 
 SnyderMouseGenes <- full_Snyder$featInfo$ENSEMBL
-tmp_snyder <- ODIS::Mouse2Human(SnyderMouseGenes) #need human homologue to run gsea
+tmp_snyder <- ODIS::MouseENS2MouseENT(SnyderMouseGenes)
 head(tmp_snyder)
 #tmp_snyder <- lapply(tmp_snyder,as.character)
 summary(tmp_snyder)
@@ -67,10 +82,86 @@ summary(full_Snyder$featInfo)
 head(full_Snyder$featInfo)
 ```
 
+Only Organoids
+```{r}
+#TRIMMING ONLY ORGANOIDS
+idx = which(full_Snyder$sampInfo$tissue == "organoid")
+snyder_readcounts_org = full_Snyder$ex[,idx]
+str(snyder_readcounts_org)
+head(snyder_readcounts_org)
+
+snyder_samps_org = full_Snyder$sampInfo[idx,]
+str(snyder_samps_org)
+head(snyder_samps_org)
+
+#rownames(snyder_readcounts_org) = make.names(rownames(snyder_readcounts_org), unique=TRUE)
+
+
+```
+
+NMF only Organoids
+```{r}
+snyder_readcounts_org <- as.data.frame(snyder_readcounts_org)
+snyder_readcounts_org <- tibble::rownames_to_column(snyder_readcounts_org, "ENSEMBL")
+snyder_readcounts_org <- plyr::join(snyder_readcounts_org, full_Snyder$featInfo)
+my_entrez_readcounts_org <- snyder_readcounts_org[,c(2:10)]
+my_entrez_readcounts_org$ENTREZ <- as.character(my_entrez_readcounts_org$ENTREZID)
+my_entrez_readcounts_org <- my_entrez_readcounts_org[,c(-9)]
+head(my_entrez_readcounts_org)
+
+my_entrez_readcounts_org <- aggregate(x=my_entrez_readcounts_org[,-which(colnames(my_entrez_readcounts_org) == "ENTREZ")],
+                                  by = list(ENTREZ= my_entrez_readcounts_org$ENTREZ),
+                                  FUN = sum)
+
+
+non_zero_matrix_org <- my_entrez_readcounts_org
+non_zero_matrix_org <- data.frame(non_zero_matrix_org[,-1], row.names = non_zero_matrix_org[,1])
+non_zero_matrix_org <- as.matrix(non_zero_matrix_org)
+non_zero_matrix_org[non_zero_matrix_org<1] <- 0.1; non_zero_matrix_org
+
+head(non_zero_matrix_org)
+
+
+library(NMF)
+
+set.seed(1234)
+snyder_nmf_org <- nmf(x = non_zero_matrix_org, rank = 3, method = 'brunet') # if not transposed, runs mmediately, then just take non-trasposed h matrix
+
+w_org <- t(coef(snyder_nmf_org))
+dim(w_org)
+head(w_org)
+
+h_org <- basis(snyder_nmf_org)
+dim(h_org)
+head(h_org)
+
+saveRDS(h_org, "./Snyder_NMF_org.rds")
+
+
+```
+
 NMF
 ```{r}
-non_zero_matrix <- snyder_readcounts
+snyder_readcounts <- as.data.frame(snyder_readcounts)
+snyder_readcounts <- tibble::rownames_to_column(snyder_readcounts, "ENSEMBL")
+snyder_readcounts <- plyr::join(snyder_readcounts, full_Snyder$featInfo)
+my_entrez_readcounts <- snyder_readcounts[,c(2:30)]
+my_entrez_readcounts$ENTREZ <- as.character(my_entrez_readcounts$ENTREZID)
+my_entrez_readcounts <- my_entrez_readcounts[,-(29)]
+head(my_entrez_readcounts)
+
+my_entrez_readcounts <- aggregate(x=my_entrez_readcounts[,-which(colnames(my_entrez_readcounts) == "ENTREZ")],
+                                  by = list(ENTREZ= my_entrez_readcounts$ENTREZ),
+                                  FUN = sum)
+
+
+non_zero_matrix <- my_entrez_readcounts
+non_zero_matrix <- data.frame(non_zero_matrix[,-1], row.names = non_zero_matrix[,1])
+non_zero_matrix <- as.matrix(non_zero_matrix)
 non_zero_matrix[non_zero_matrix<1] <- 0.1; non_zero_matrix
+
+head(non_zero_matrix)
+
 
 library(NMF)
 
@@ -87,14 +178,26 @@ head(h)
 
 saveRDS(h, "./Snyder_NMF.rds")
 
-head(Snyder_NMF)
 
 ```
 
 Make GSEA friendly "gene_list"
 ```{r}
-df1 <- Snyder_NMF[,1]
+Snyder_NMF <- readRDS("./Snyder_NMF.rds")
+head(Snyder_NMF)
+Snyder_NMF_org <- readRDS("./Snyder_NMF_org.rds")
+head(Snyder_NMF_org)
+
+library(BBmisc)
+nmf_norm <- normalize(Snyder_NMF, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")
+head(nmf_norm)
+df1 <- nmf_norm[,1]
 head(df1)
+
+nmf_norm_org <- normalize(Snyder_NMF_org, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")
+head(nmf_norm_org)
+df2 <- nmf_norm_org[,1]
+head(df2)
 ```
 
 
@@ -125,22 +228,100 @@ list_of_gmt_files <- ODIS::convert_msigdbr_obj_to_gmt_file(list_of_sets)
 ```
 
 
-NMF GSEA
+#NMF GSEA, done separately on norm. and norm_org, total nonsense
+<!-- ```{r} -->
+
+<!-- gene_list <- df2 -->
+<!-- head(gene_list, n = 5) -->
+
+<!-- gene_list = sort(gene_list, decreasing = TRUE) -->
+<!-- gene_list = gene_list[!duplicated(names(gene_list))] -->
+<!-- head(gene_list, n = 5) -->
+
+<!-- for(i in list_of_gmt_files){ -->
+<!--   print(i) -->
+<!--   res_org <- ODIS::ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.05) ## need to structure outputs correctly -->
+<!-- } -->
+
+
+<!-- summary(res) -->
+<!-- summary(res_org) -->
+<!-- saveRDS(res, "./Snyder_NMF_res.rds") -->
+<!-- saveRDS(res_org, "./Snyder_NMF_res_org.rds") -->
+<!-- ``` -->
+
+Gsea on All three vectors of nmf
 ```{r}
 
-gene_list <- df1
-head(gene_list, n = 5)
+snyder_nmfs <- list()
 
-for(i in list_of_gmt_files){
-  print(i)
-  res <- ODIS::ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.05) ## need to structure outputs correctly
+for(Y in list(list("V1" = nmf_norm[,1, drop = F]),
+              list("V2" = nmf_norm[,2, drop = F]),
+              list("V3" = nmf_norm[,3, drop = F])) #drop = f MEANS KEEP IT AS A MATRIX WITH COLLUMNS AND 
+){
+  X <- Y[[1]]
+  
+  gene_list = X[,1]
+  gene_list = sort(gene_list, decreasing = TRUE)
+  gene_list = gene_list[!duplicated(names(gene_list))]
+  head(gene_list, n = 5)
+  
+
+  
+  for(i in list_of_gmt_files){
+    print(i)
+    res <- ODIS::ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.05)
+    snyder_nmfs[[names(Y)]][[i]] <- res  ## find a way to reference "nmf_norm" and "nmf_norm_org"
+  }
+  #orig_matrix must be a data frame
+  snyder_nmfs[[names(Y)]]$orig_matrix <- as.data.frame(list(log2FoldChange = gene_list,
+                                                            ENTREZID = row.names(X),
+                                                            SYMBOL = row.names(X)))
+  
 }
 
+summary(snyder_nmfs)
+summary(snyder_nmfs$V2)
+summary(snyder_nmfs$V2$orig_matrix)
+head(snyder_nmfs$V2$`./myC1.gmt`$Results)
+str(snyder_nmfs$V1$orig_matrix$log2FoldChange)
 
-summary(res)
+saveRDS(snyder_nmfs, "./Snyder_NMF_V123.rds")
+
 ```
+
+Multi color heatmaps
+```{r}
+res_nmf <- readRDS("./Snyder_NMF_V123.rds")
+ODIS.NMF.Heatmaps(res_nmf)
+
+```
+
+Hoe does V1, V2, V3 pathways and leading edches overlap in nmf_norm overlap and how can we plot it on one heatmap such that it makes sense?
+```{r}
+#maybe make dfs where cols are pathways ond row names are leading edges? color code by V1, V2, C3?
+
+a1_lead <- res_nmf$V1$`./myC2_KEGG.gmt`$Results$leadingEdge
+a2_lead <- res_nmf$V2$`./myC2_KEGG.gmt`$Results$leadingEdge
+a3_lead <- res_nmf$V3$`./myC2_KEGG.gmt`$Results$leadingEdge
+lead_df <- list("V1 lead" = a1_lead,
+                "V2 lead" = a2_lead,
+                "V3 lead" = a3_lead)
+
+a1_path <- res_nmf$V1$`./myC2_KEGG.gmt`$Results$pathway
+a2_path <- res_nmf$V2$`./myC2_KEGG.gmt`$Results$pathway
+a3_path <- res_nmf$V3$`./myC2_KEGG.gmt`$Results$pathway
+path_df <- list("V1 path" = a1_path,
+                "V2 path" = a2_path,
+                "V3 path" = a3_path)
+
+summary(path_df)
+summary(lead_df)
+```
+
 
 GENE VS GENE SET HEATMAPS
 ```{r}
-ODIS::ODIS.Heatmaps(x)
+res_nmf <- readRDS("./Snyder_NMF_V123.rds")
+ODIS::ODIS.Heatmaps(res_nmf)
 ```
