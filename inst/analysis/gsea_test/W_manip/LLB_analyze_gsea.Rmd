@@ -1,0 +1,305 @@
+---
+title: "LLB_analyze_gsea"
+author: "Margaret Hall"
+date: "10/28/2021"
+output: html_document
+---
+
+
+
+search more pathways to pull in 
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
+#If running after LLB_do_gsea.Rmd, restart R session to clear packages --> Packages loaded there will prevent this markdown from running
+
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(fgsea)
+library(BiocParallel)
+library(gplots)
+```
+
+```{r}
+load("~/ODIS2/inst/analysis/gsea_test/W_manip/liverRes.Rdata")
+load("~/ODIS2/inst/analysis/gsea_test/W_manip/lungRes.Rdata")
+load("~/ODIS2/inst/analysis/gsea_test/W_manip/brainRes.Rdata")
+#load("~/ODIS2/inst/analysis/gsea_test/W_manip/brainRes2.Rdata")
+
+load("~/ODIS2/inst/analysis/gsea_test/W_manip/liver.Rdata")
+load("~/ODIS2/inst/analysis/gsea_test/W_manip/lung.Rdata")
+load("~/ODIS2/inst/analysis/gsea_test/W_manip/brain.Rdata")
+
+liverPathways <- readRDS("~/ODIS2/inst/analysis/gsea_test/W_manip/liverPathways.rds")
+lungPathways <- readRDS("~/ODIS2/inst/analysis/gsea_test/W_manip/lungPathways.rds")
+brainPathways <- readRDS("~/ODIS2/inst/analysis/gsea_test/W_manip/brainPathways.rds")
+```
+
+```{r}
+#no longer using
+printRes <- function(res){
+  resMean <- data.frame()
+  for(i in 1:length(res)){
+    print(names(res)[i])
+    #print(is.na(res[[i]]$NES))
+    res[[i]] <- res[[i]][!is.na(res[[i]]$NES), ]
+    #print(summary(res[[i]]$NES))
+    print(mean(res[[i]]$NES))
+    resMean[names(res)[i], 1] <- mean(res[[i]]$NES)
+  }
+  return(resMean)
+}
+```
+
+
+# Average NES
+```{r echo=FALSE}
+
+pathwayES.df <- function(organRes, normalized = FALSE){
+  resultDF <- data.frame(matrix(nrow = nrow(organRes[[1]]), ncol = 0))
+  resultDF$pathway <- organRes[[1]]$pathway
+  for (score in names(organRes)) {
+    #print(score)
+    if(normalized){
+      tmpPathways <- organRes[[score]] %>% dplyr::select(pathway, NES)
+      tmpPathways <- rename(tmpPathways, {{score}} := NES)
+    }
+    else{
+      tmpPathways <- organRes[[score]] %>% dplyr::select(pathway, ES)
+      tmpPathways <- rename(tmpPathways, {{score}} := ES)
+    }
+    resultDF <- merge(y = resultDF, x = tmpPathways, by = "pathway")
+  }
+  
+  pathwayNames <- resultDF$pathway
+  resultDF <- subset(resultDF, select = -c(pathway))
+  resultDF <- as.matrix(resultDF)
+  row.names(resultDF) <- pathwayNames
+  
+  return(resultDF)
+}
+
+
+liverNES <- pathwayES.df(liverRes, normalized = TRUE)
+lungNES <- pathwayES.df(lungRes, normalized = TRUE)
+brainNES <- pathwayES.df(brainRes, normalized = TRUE)
+
+liverES <- pathwayES.df(liverRes)
+lungES <- pathwayES.df(lungRes)
+brainES <- pathwayES.df(brainRes)
+
+NES <- data.frame(scores = colnames(liverNES))
+ES <- data.frame(scores = colnames(liverES))
+
+NES$liver <- apply(liverNES, 2, mean)
+ES$liver <- apply(liverES, 2, mean)
+
+NES$lung <- apply(lungNES, 2, mean)
+ES$lung <- apply(lungES, 2, mean)
+
+NES$brain <- apply(brainNES, 2, mean)
+ES$brain <- apply(brainES, 2, mean)
+```
+
+```{r echo=FALSE}
+mNES <- reshape2::melt(NES, id.vars = "scores")
+mES <- reshape2::melt(ES, id.vars = "scores")
+
+ggplot(data=mNES, aes(x=variable, y=value, fill=scores)) +
+#ggplot(data=mNES, aes(x=scores, y=value, fill=variable)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  #scale_fill_brewer(palette="Paired")
+  scale_fill_brewer(palette="Set3") +
+  ggtitle("mean NES by method")
+
+
+ggplot(data=mES, aes(x=variable, y=value, fill=scores)) +
+#ggplot(data=mNES, aes(x=scores, y=value, fill=variable)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  #scale_fill_brewer(palette="Paired")
+  scale_fill_brewer(palette="Set3") +
+  ggtitle("mean ES by method")
+
+#table(mNES)
+```
+
+# pathway p-val heatmap
+
+```{r}
+pathwayPadj.df <- function(organRes){
+  resultDF <- data.frame(matrix(nrow = nrow(organRes[[1]]), ncol = 0))
+  resultDF$pathway <- organRes[[1]]$pathway
+  for (score in names(organRes)) {
+    #print(score)
+    tmpPathways <- organRes[[score]] %>% dplyr::select(pathway, padj)
+    tmpPathways <- rename(tmpPathways, {{score}} := padj)
+    resultDF <- merge(y = resultDF, x = tmpPathways, by = "pathway")
+  }
+  
+  pathwayNames <- resultDF$pathway
+  resultDF <- subset(resultDF, select = -c(pathway))
+  resultDF <- as.matrix(resultDF)
+  row.names(resultDF) <- pathwayNames
+  
+  return(resultDF)
+}
+
+liverPadj <- pathwayPadj.df(liverRes)
+lungPadj <- pathwayPadj.df(lungRes)
+brainPadj <- pathwayPadj.df(brainRes)
+
+heatmap.2(lungPadj, scale = "none", key = TRUE, margins = c(10,30), trace = "none", main = "lung padj")
+heatmap.2(liverPadj, scale = "none", key = TRUE, margins = c(10,30), trace = "none", main = "liver padj")
+heatmap.2(brainPadj, scale = "none", key = TRUE, margins = c(10,30), trace = "none", main = "brain padj")
+```
+
+
+
+
+
+# Selected Pathway
+
+```{r}
+organ <- liver
+pathway <- liverPathways[["AIZARANI_LIVER_C14_HEPATOCYTES_2"]]
+for(statname in names(organ)){
+  #print(statname)
+  tmpstat <- organ[,statname]
+  names(tmpstat) <- row.names(organ)
+  print(fgsea::plotEnrichment(pathway = pathway, stats = tmpstat) + ggtitle(paste(statname, )))
+}
+```
+
+# Heatmap of pathways
+
+```{r no longer used, echo=FALSE}
+#repurposed into pathwayNES.df
+#call heatmap.2 directly now
+heatmapPathways <- function(organRes, pathwayDF, pathToKeep = NA){
+  resultDF <- data.frame(matrix(nrow = length(pathwayDF), ncol = 0))
+  resultDF$pathway <- names(pathwayDF)
+  for (score in names(organRes)) {
+    print(score)
+    tmpPathways <- organRes[[score]] %>% dplyr::select(pathway, NES)
+    tmpPathways <- rename(tmpPathways, {{score}} := NES)
+    resultDF <- merge(y = resultDF, x = tmpPathways, by = "pathway")
+  }
+  
+  pathwayNames <- resultDF$pathway
+  resultDF <- subset(resultDF, select = -c(pathway))
+  resultDF <- as.matrix(resultDF)
+  row.names(resultDF) <- pathwayNames
+  
+  if(is.na(pathToKeep) == F){
+    #removePaths <- setdiff(row.names(resultDF), pathToKeep)
+    #print(removePaths)
+    resultDF <- subset(resultDF, subset = (row.names(resultDF) %in% pathToKeep))
+  }
+  
+  
+  heatmap.2(resultDF, 
+            scale = "none", 
+            key = TRUE,
+            margins = c(10,30),
+            trace = "none"
+            )
+  return(hclust(dist(resultDF)))
+}
+```
+
+# ES heatmap
+```{r}
+heatmap.2(lungES, scale = "none", key = TRUE, margins = c(10,30), trace = "none", main = "lung ES")
+heatmap.2(liverES, scale = "none", key = TRUE, margins = c(10,30), trace = "none", main = "liver ES")
+heatmap.2(brainES, scale = "none", key = TRUE, margins = c(10,30), trace = "none", main = "brain ES")
+```
+
+# NES heatmap
+```{r}
+heatmap.2(lungNES, scale = "none", key = TRUE, margins = c(10,30), trace = "none", main = "lung NES")
+lungTree <- hclust(dist(lungNES))
+#plot(lungTree)
+lungTree <- cutree(lungTree, 1)
+#use all lung pathways
+
+heatmap.2(liverNES, scale = "none", key = TRUE, margins = c(10,30), trace = "none", main = "liver NES")
+liverTree <- hclust(dist(liverNES))
+#plot(liverTree)
+liverTree <- cutree(liverTree, 3)
+
+heatmap.2(brainNES, scale = "none", key = TRUE, margins = c(10,30), trace = "none", main = "brain NES")
+brainTree <- hclust(dist(brainNES))
+brainTree <- cutree(brainTree, 2)
+```
+
+#reduced pathway lists
+```{r reduce pathways and rerun fgsea, echo=FALSE}
+redLiverPathways <- names(liverTree[liverTree == 2 | liverTree == 3])
+#redLiverPathways <- aizaraniLiver[redLiverPathways]
+heatmap.2(liverNES, scale = "none", key = TRUE, margins = c(10,30), trace = "none", rowsep = nrow(liverNES)-length(redLiverPathways))
+
+redLungPathways <- names(lungTree)
+#redLungPathways <- travagliniLung[redLungPathways]
+
+redBrainPathways <- names(brainTree[brainTree == 2])
+#redBrainPathways <- fanBrain[redBrainPathways]
+heatmap.2(brainNES, scale = "none", key = TRUE, margins = c(10,30), trace = "none", rowsep = length(redBrainPathways))
+```
+
+```{r}
+redLiverNES <- subset(liverNES, subset = (row.names(liverNES) %in% redLiverPathways))
+redLungNES <- subset(lungNES, subset = (row.names(lungNES) %in% redLungPathways))
+redBrainNES <- subset(brainNES, subset = (row.names(brainNES) %in% redBrainPathways))
+
+redNES <- data.frame(scores = colnames(redLiverNES))
+redNES$liver <- apply(redLiverNES, 2, mean)
+redNES$lung <- apply(redLungNES, 2, mean)
+redNES$brain <- apply(redBrainNES, 2, mean)
+
+# ---------------------------------------------------------------------- 
+
+redLiverES <- subset(liverES, subset = (row.names(liverES) %in% redLiverPathways))
+redLungES <- subset(lungES, subset = (row.names(lungES) %in% redLungPathways))
+redBrainES <- subset(brainES, subset = (row.names(brainES) %in% redBrainPathways))
+
+redES <- data.frame(scores = colnames(redLiverES))
+redES$liver <- apply(redLiverES, 2, mean)
+redES$lung <- apply(redLungES, 2, mean)
+redES$brain <- apply(redBrainES, 2, mean)
+```
+
+```{r visualize reduced pathways, echo=FALSE}
+redmNES <- reshape2::melt(redNES, id.vars = "scores")
+
+ggplot(data=redmNES, aes(x=variable, y=value, fill=scores)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  theme(axis.text.x = element_text(angle = 90)) + 
+  scale_fill_brewer(palette="Set3") +
+  ggtitle("mean NES by method on select pathways")
+
+# -----------------------------------------------------------------
+redmES <- reshape2::melt(redES, id.vars = "scores")
+
+ggplot(data=redmES, aes(x=variable, y=value, fill=scores)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  theme(axis.text.x = element_text(angle = 90)) + 
+  scale_fill_brewer(palette="Set3") +
+  ggtitle("mean ES by method on select pathways")
+
+# ---------------------------------------------------------
+
+
+heatmap.2(redLungES, scale = "none", key = TRUE, margins = c(10,30), trace = "none")
+heatmap.2(redLiverES, scale = "none", key = TRUE, margins = c(10,30), trace = "none")
+heatmap.2(redBrainES, scale = "none", key = TRUE, margins = c(10,30), trace = "none")
+#redLiverRes <- heatmapPathways(liverRes, liverPathways, redLiverPathways)
+#redLungRes <- heatmapPathways(lungRes, lungPathways, redLungPathways)
+#redBrainRes <- heatmapPathways(brainRes, brainPathways, redBrainPathways)
+```
+
+
