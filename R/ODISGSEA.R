@@ -14,7 +14,7 @@
 #' @return nothing
 #' @examples 
 
-ODISGSEA = function(gene_list, theGoFile, pval) {
+ODISGSEA = function(gene_list, theGoFile, pval, verbose = FALSE) {
   set.seed(54321)
   library(dplyr)
   library(gage)
@@ -29,29 +29,36 @@ ODISGSEA = function(gene_list, theGoFile, pval) {
     gene_list = sort(gene_list, decreasing = TRUE)
   }
   myGO = fgsea::gmtPathways(theGoFile)
-  print("printing myGO")
-  print(head(myGO))
-  
+  if(verbose){
+    print("printing myGO")
+    print(head(myGO))
+  }
+
+  library(BiocParallel)
   #' fgsea takes pathways from theGoFile and places them into "myGO" -> a named list where each list is a vector of ENTREZ id's
+  names(gene_list) <- as.character(names(gene_list))
   fgRes <- fgsea::fgseaMultilevel(pathways = myGO, 
                         stats = gene_list,
                         minSize=1,
                         maxSize=1000,
                         scoreType = c("std", "pos", "neg"),
-                        nproc = 0,
                         gseaParam = 1,
-                        BPPARAM   = NULL) %>% 
+                        nproc = 2
+                        ) %>% 
     as.data.frame() 
-  
-  print("printing fgRes df")
-  print(fgRes)
+  if(verbose){
+    print("printing fgRes df")
+    print(fgRes)
+  }
   
   fgRes <- fgRes %>% dplyr::filter(padj < !!pval)
   
   #fgRes is a dataframe of 9 VARIABLES
   
-  print("printing str of fgRes")
-  print(str(fgRes))
+  if(verbose){
+    print("printing str of fgRes")
+    print(str(fgRes))
+  }
   
   ## Filter FGSEA by using gage results. Must be significant and in same direction to keep 
   gaRes = gage::gage(gene_list, gsets=myGO, same.dir=TRUE, set.size =c(15,600))
@@ -78,31 +85,37 @@ ODISGSEA = function(gene_list, theGoFile, pval) {
   
   Up = fgRes[fgRes$NES > 0,]
   Down = fgRes[fgRes$NES < 0,]
-  
-  print("printing Up")
-  print(Up)
-  print("printing Down")
-  print(Down)
-  
+  if(verbose){
+    print("printing Up")
+    print(Up)
+    print("printing Down")
+    print(Down)
+  }
+    
   fgRes = fgRes %>% arrange(desc(NES))
   
-  print("printing fgRes")
-  print(fgRes)
+  if(verbose){
+    print("printing fgRes")
+    print(fgRes)
+  }
   
   
   fgRes$pathway = stringr::str_replace(fgRes$pathway, "GO_" , "")
   
-  print("fgRes")
-  print(fgRes)
+  if(verbose){
+    print("fgRes")
+    print(fgRes)
+  }
   
   
   fgRes$Enrichment = ifelse(fgRes$NES > 0, "Up-regulated", "Down-regulated")
   filtRes = rbind(head(fgRes, n = 10),
                   tail(fgRes, n = 10 ))
   
-  print("printing filtRes")
-  print(filtRes)
-  
+  if(verbose){
+    print("printing filtRes")
+    print(filtRes)
+  }
   
   # g = ggplot(filtRes, aes(reorder(pathway, NES), NES)) +
   #   geom_segment( aes(reorder(pathway, NES), xend=pathway, y=0, yend=NES)) +
