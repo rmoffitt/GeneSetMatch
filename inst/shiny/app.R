@@ -40,17 +40,22 @@ ui <- fluidPage(
         wellPanel(
             h3("Select Analysis"),
             radioButtons("analysisChoice", "Analysis",
-                         choices = list("DESeq" = "deseq", "NMF" = "nmf", "FindAllMarkers" = "fam",
+                         choices = list("Differential expression" = "de", "NMF" = "nmf", "FindAllMarkers" = "fam",
                                         "etc" = "null"),
-                         selected = "deseq"),
+                         selected = "de"),
+            p("-----------------------", align = "center"),
             # Create options based on method selection
-            conditionalPanel("input.analysisChoice == 'deseq'",
+            conditionalPanel("input.analysisChoice == 'de'",
                              p("deseq options go here"),
-                             sliderInput("placeholder", "place holder:",
-                                         min = 2, max = 20, #change max to ncol? Just cap at something reasonable?
-                                         value = 3,
-                                         ticks = F
-                             )
+                             selectInput("DEmethod", "Method to perform DE:",
+                                         choices = list("DEseq" = "deseq", "edgeR" = "edger", "limma" = "limma"),
+                                         selected = "deseq"),
+                             conditionalPanel("input.datasetRadio == 'file'",
+                                              textInput("conditionLab",
+                                                        "A comma seperated list of groups/condition for each sample
+                                                        in the same order as the uploaded dataset.
+                                                        Ex: one,two,one,three,two,one")
+                                              )
             ),
             conditionalPanel("input.analysisChoice == 'nmf'",
                              p("You can test several ranks, resulting in nmf rank plots, or simply
@@ -63,7 +68,7 @@ ui <- fluidPage(
                              actionButton("rankTest", "test different ranks"),
                              br(),
                              br(),
-                             p("-----------------------"),
+                             p("-----------------------", align = "center"),
                              sliderInput("nmfRank", "rank to use:", #issue -- ideally would not display blue on color bar, but fine for now
                                          min = 2, max = 20,
                                          value = 3,
@@ -81,9 +86,7 @@ ui <- fluidPage(
             actionButton("runAnalysis", "run analysis")
         ),
         #============================================================================================
-        wellPanel(
-            h3("GSEA")
-        )
+        uiOutput("GSEA")
     ),
 
             
@@ -95,8 +98,8 @@ ui <- fluidPage(
                        type = "tabs",
                        tabPanel("Preview raw data", DT::dataTableOutput("rawData")),
                        # issue -- set plot output size to prevent weird stretching
-                       tabPanel("analysis output", plotOutput(("analysisPlot")), uiOutput("GSEAbutton")), #updateTabsetPanel to change name?
-                       tabPanel("GSEA output", uiOutput("genesetRadios"), DT::dataTableOutput("gseaTable"), actionButton("makeHeatmap", "generate heat map")),
+                       tabPanel("analysis output", plotOutput("analysisPlot"), textOutput("gseaPrompt")),
+                       tabPanel("GSEA output", uiOutput("clusterRadioUI"), uiOutput("genesetRadios"), DT::dataTableOutput("gseaTable")),
                        tabPanel("ODIS Heatmap")
            )
         )
@@ -111,8 +114,8 @@ server <- function(input, output, session) {
     # -- GLOBALS --
     # -------------
     globals <- reactiveValues(dataset_list = list(LLB = readRDS("~/ODIS2/data/LLB.Rds"), # issue -- build and set loads to ODIS2::dataname
-                                              snyder = readRDS("~/ODIS2/data/full_snyder_ex.Rds"),
-                                              file = NULL), 
+                                             snyder = readRDS("~/ODIS2/data/full_snyder_ex.Rds"),
+                                             file = NULL), 
                               analysisres = NULL,
                               GSEAres = NULL)
     
@@ -137,14 +140,17 @@ server <- function(input, output, session) {
         #load in file
         # issue -- check what type of file, want to accept Rdata/Rds dataframes and csv
         e = new.env()
-        globals$dataset_list$file <- e[[load(input$dataFile$datapath, envir = e)]]
+        globals$dataset_list$file$ex <- e[[load(input$dataFile$datapath, envir = e)]]
         #if(csv)
         #readcsv
         })
+    observeEvent(input$conditionLab, {
+        globals$dataset_list$file$condition <- unlist(strsplit(input$conditionLab, ","))
+    })
 
     
     output$rawData <- DT::renderDataTable(
-        globals$dataset_list[[input$datasetRadio]],
+        globals$dataset_list[[input$datasetRadio]]$ex,
         options = list(scrollX = TRUE)
     )
     
@@ -157,7 +163,7 @@ server <- function(input, output, session) {
         showNotification("Running nmfEstimateRank. This will take a minute.")
         ranks <- seq(input$rankToTest[1], input$rankToTest[2])
         print(ranks)
-        nmfTest <- estimateRankShiny(globals$dataset_list[[input$datasetRadio]], ranks)
+        nmfTest <- estimateRankShiny(globals$dataset_list[[input$datasetRadio]]$ex, ranks)
         print("done")
         output$analysisPlot <- renderPlot(plot(nmfTest))
         updateTabsetPanel(session, "mainTabs", selected = "analysis output")
@@ -168,38 +174,48 @@ server <- function(input, output, session) {
     observeEvent(input$runAnalysis, {
         showNotification("Running analysis. This will take a minute.")
         
-        if(input$analysisChoice == "nmf"){
+        if(input$analysisChoice == "de"){
+            source("~/ODIS2/inst/shiny/shinyDE.R") # issue
+            print("running differential expresion pipeline")
+            #print(globals$dataset_list[[input$datasetRadio]]$condition)
+            globals$analysisres <- DEforShiny(globals$dataset_list[[input$datasetRadio]]$ex, globals$dataset_list[[input$datasetRadio]]$condition, input$DEmethod)
+            
+            print("DE done")
+        }
+        else if(input$analysisChoice == "nmf"){
             print("running NMF pipeline")
             source("~/ODIS2/inst/shiny/shinyNMF.R") # issue
-            globals$analysisres <- NMFforShiny(globals$dataset_list[[input$datasetRadio]], input$nmfRank)
+            globals$analysisres <- NMFforShiny(globals$dataset_list[[input$datasetRadio]]$ex, input$nmfRank)
             
-            # issue -- may no longer be needed by use of sliders
-            if(class(globals$analysisres) == "character"){
-                showNotification(globals$analysisres)
-            }
-            else{
-                # issue -- determine how to format res
-                output$analysisPlot <- renderPlot(consensusmap(globals$analysisres))
-                updateTabsetPanel(session, "mainTabs", selected = "analysis output")
-                output$GSEAbutton <- renderUI({
-                    tagList(checkboxGroupInput("pathwaySelection", "Select pathways for GSEA",
-                                               choices = c("C1", "C2", "C3","C4","C5","C6","C7","C8", "custom (this is a placeholder and selecting it breaks the code)"),
-                                               selected = NULL),
-                            actionButton("runGSEA", "run GSEA"))
-                })
-            }
             print("NMF completed")
         } 
-        # End of NMF analysis
         else{
             showNotification("not yet implemented")
             # issue -- To be completed
         }
+        
+        
+        # change output now that analysis is completed
+        #View(globals$analysisres)
+        output$analysisPlot <- globals$analysisres$plot
+        updateTabsetPanel(session, "mainTabs", selected = "analysis output")
+        output$GSEA <- renderUI({
+            tagList(wellPanel(
+                h3("GSEA"),
+                checkboxGroupInput("pathwaySelection", "Select pathways for GSEA",
+                                   choices = c("C1", "C2", "C3","C4","C5","C6","C7","C8", "custom (this is a placeholder and selecting it breaks the code)"),
+                                   selected = NULL),
+                # fileInput for custom pathways?
+                # textInput for custom pathways?
+                actionButton("runGSEA", "run GSEA"))
+            )
+        })
+        output$gseaPrompt <- renderText("Select or import pathways in the left panel and start GSEA analysis when ready.")
     })
     
-    # -----------------------------
-    # --------- GSEA --------------
-    # -----------------------------
+    # ----------
+    # -- GSEA --
+    # ----------
     observeEvent(input$runGSEA, {
         showNotification("running GSEA... functioning!? :0") # :(
         print(input$pathwaySelection)
@@ -211,34 +227,58 @@ server <- function(input, output, session) {
                            "file" = "Mus musculus" # issue -- need to create some sort of input widget
         )
         print(species)
-        genesets <- prepareGenesets(species, input$pathwaySelection) # issue -- allow user to select genesets. For now just testing on C8...
+        genesets <- prepareGenesets(species, input$pathwaySelection) # issue -- allow user to select genesets.
         #View(res)
-        gene_list <- sort(globals$analysisres@fit@W[,1], decreasing = TRUE) # issue -- place holder to test with NMF, need to determine res structure
+        # gene_list <- sort(globals$analysisres@fit@W[,1], decreasing = TRUE) #restructured analysisres, now give entire list to ODISGSEA_helper
         #print(gene_list)
-        globals$GSEAres <- ODISGSEA_helper(gene_list = gene_list, gmtList = genesets, pval = 1) #maintains listed structure for compatibility with ODISHEATMAP, but should only ever have one list item
-        #View(GSEAres)
+        globals$analysisres <- ODISGSEA_helper(analysisres = globals$analysisres, gmtList = genesets, pval = 1)
+        #View(analysisres)
+        
+        
+        
+        # update UI after GSEA completes
+        output$clusterRadioUI <- renderUI({
+            selectInput("clusterRadio", "Cluster to view GSEA results for",
+                        choices = names(globals$analysisres$clusterlist), 
+                        selected = names(globals$analysisres$clusterlist)[1])
+        })
         
         output$genesetRadios <- renderUI({
+            tagList(
             radioButtons("viewGeneset", "Geneset to view",
-                         choiceNames = names(globals$GSEAres[[1]]),
-                         choiceValues = names(globals$GSEAres[[1]]),
-                         select = names(globals$GSEAres[[1]])[1]
+                         choiceNames = names(globals$analysisres$clusterlist[[input$clusterRadio]]$GSEAres),
+                         choiceValues = names(globals$analysisres$clusterlist[[input$clusterRadio]]$GSEAres),
+                         select = names(globals$analysisres$clusterlist[[input$clusterRadio]]$GSEAres)[1]
+            ),
+            actionButton("makeHeatmap", "generate heat map")
             )
         })
+        
         print("generating table")
         # issue "Warning: Error in [[: attempt to select less than one element in
-        # get1index" I believe this may due to input$viewGeneset not existing then
+        # get1index" I believe this may due to input$viewGeneset not existing when
         # datatable is generated, then it does not continue to show the error?
-        output$gseaTable <- DT::renderDataTable(globals$GSEAres[[1]][[input$viewGeneset]][["Results"]],
+        output$gseaTable <- DT::renderDataTable(globals$analysisres$clusterlist[[input$clusterRadio]]$GSEAres[[input$viewGeneset]][["Results"]],
                                                 options = list(scrollX = TRUE))
         updateTabsetPanel(session, "mainTabs", selected = "GSEA output")
     })
     
-    # ------------------------------------
-    # ----------- Heatmap ----------------
-    # ------------------------------------
+    
+    
+    # -------------
+    # -- Heatmap --
+    # -------------
     observeEvent(input$makeHeatmap, {
         showNotification("You clicked the button! :)")
+        #View(globals$analysisres)
+        print(getwd())
+        
+        source("~/ODIS2/inst/shiny/shinyHeatmapHelper.R") # issue
+        heatmap <- shinyHeatmapHelper(globals$analysisres, globals$dataset_list[[input$datasetRadio]]$ex)  # issue... function needs work :(
+        
+        updateTabsetPanel(session, "mainTabs", selected = "ODIS Heatmap")
+        # https://gist.github.com/aagarw30/d5aa49864674aaf74951
+        # imbedding PDF images
     })
     
 }

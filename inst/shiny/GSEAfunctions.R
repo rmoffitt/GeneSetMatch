@@ -39,14 +39,15 @@ prepareGenesets <- function(species, selectPathList){
 
 
 # be sure to match species above
-ODISGSEA_helper <- function(gene_list, gmtList, pval){ # issue? need to think about how this will work
-  GSEA_outputs <- list()
-    for(i in gmtList){
-    print(i)
-    source("~/ODIS2/R/ODISGSEA.R") # issue
-    res <- ODISGSEA(gene_list = gene_list, theGoFile = i, pval = pval)
-    GSEA_outputs[["gene_list"]][[i]] <- res ## need to structure outputs correctly
+ODISGSEA_helper <- function(analysisres, gmtList, pval){
+  for (cluster in 1:length(analysisres$clusterlist)) {
+    for(pathway in gmtList){
+      print(pathway)
+      source("~/ODIS2/R/ODISGSEA.R") # issue
+      res <- ODISGSEA(gene_list = analysisres$clusterlist[[cluster]]$genelist, theGoFile = pathway, pval = pval)
+      analysisres$clusterlist[[cluster]][[pathway]] <- res
+    }
   }
   
-  return(GSEA_outputs)
+  return(analysisres)
 }

@@ -25,13 +25,35 @@ NMFforShiny <- function(dataset, rank = 3, scoreMethod = "log2", nrun = 30){
     return("NMF not completed: rank must be greater than 1.")
   }
   
+  
   #run NMF
   print("nmf function")
   nmfresult <- nmf(dataset, rank, .options = "p2")
   #score W matrix
   
-  #return something
-  return(nmfresult)
+  # **Place holder**
+  # methods to order W matrix
+  # if (scoreMethod == "log2fc"){
+  #   execute log2fc
+  #}
+  # else if(){
+  #   etc
+  #}
+  #else(
+  print("ordering by W value")
+  #)
+
+  
+  analysisres <- list()
+  #analysisres$clusterlist <- vector(mode = "list", length = rank)
+  for(i in 1:rank) {
+    analysisres$clusterlist[[paste0("V",i)]]$genelist <- nmfresult@fit@W[ , i]
+  }
+  #names(analysisres) <- colnames(nmfresult)
+  analysisres$object <- nmfresult
+  analysisres$plot <- renderPlot(consensusmap(globals$analysisres$object))
+  
+  return(analysisres)
 }
 
 estimateRankShiny <- function(dataset, ranks){

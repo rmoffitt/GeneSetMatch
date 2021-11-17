@@ -16,10 +16,13 @@ prepareLLB <- function(){
   #rownames(W) <- W$ENTREZID
   rownames(ex) <- ex$ENTREZID
   ex <- dplyr::select(ex,!c("SYMBOL","ENTREZID", "ENSEMBL", "PROBEID"))
+  condition <- c(rep("liver", 3), rep("brain", 3), rep("lung", 3), rep("mixed", 33))
+  
+  LLB <- list(ex = ex, condition= condition)
   
   #detach(package:annotate,unload=TRUE)
   #detach(package:rat2302.db,unload=TRUE)
-  saveRDS(ex, file = "~/ODIS2/data/LLB.Rds")
+  saveRDS(LLB, file = "~/ODIS2/data/LLB.Rds")
 }
 
 prepareSnyder <- function(){
@@ -40,7 +43,11 @@ prepareSnyder <- function(){
   ex <- ex[to.keep,]
   ex = ex[!duplicated(ex$ENTREZID),]
   row.names(ex) <- ex$ENTREZID
+  
   ex <- dplyr::select(ex, !c("ENSEMBL", "ENTREZID", "SYMBOL"))
+  condition <- full_Snyder$sampInfo$`hnf4a status`
+  
+  snyder = list(ex = ex, condition = condition)
 
-  saveRDS(ex, file = "~/ODIS2/data/full_snyder_ex.Rds")
+  saveRDS(snyder, file = "~/ODIS2/data/full_snyder_ex.Rds")
 }
