@@ -81,7 +81,8 @@ ODIS.Heatmaps <- function(gsea_results){
         print("dim of Matrix after sorting")
         print(dim(theMatrix))
         
-        
+        print(paste0(i, "_", substr(names(thisAnalysis)[k],
+                                    5, stop = 999), ".pdf"))
         pdf(paste0(i, "_", substr(names(thisAnalysis)[k],
                                   5, stop = 999), ".pdf"),
             width = ncol(theMatrix)/10 + 5,
@@ -118,4 +119,6 @@ ODIS.Heatmaps <- function(gsea_results){
       }
     }
   }
+  
+  return(plots)
 }
