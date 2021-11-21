@@ -14,6 +14,7 @@ ODIS.Heatmaps <- function(gsea_results){
   
   my_palette <- colorRampPalette(c("blue", "lightgrey", "red"))(n = 299)
   plots <- list()
+  filelist <- list()
   
   for(i in names(gsea_results)){
     thisAnalysis <- gsea_results[[i]]
@@ -83,6 +84,9 @@ ODIS.Heatmaps <- function(gsea_results){
         
         print(paste0(i, "_", substr(names(thisAnalysis)[k],
                                     5, stop = 999), ".pdf"))
+        filelist[[i]][[k]] <- paste0(i, "_", substr(names(thisAnalysis)[k],
+                                                    5, stop = 999), ".pdf")
+        
         pdf(paste0(i, "_", substr(names(thisAnalysis)[k],
                                   5, stop = 999), ".pdf"),
             width = ncol(theMatrix)/10 + 5,
@@ -120,5 +124,5 @@ ODIS.Heatmaps <- function(gsea_results){
     }
   }
   
-  return(plots)
+  return(filelist)
 }
