@@ -14,10 +14,15 @@ DEforShiny <- function(ex, condition, method){
     res$object <- deseq$test
     #res <- res$summary
     # code below needs to be properly completed
+    # hard coding 1 is problematic
     conditionNames <- levels(as.factor(condition))
-    res$clusterlist[[conditionNames[[1]]]]$genelist <- (1- deseq$summary$pval * deseq$summary$logFC)
-    names(res$clusterlist[[conditionNames[[1]]]]$genelist) <- deseq$summary$ID
-    res$plot <- renderPlot(DESeq2::plotMA(res$object))
+    #res$clusterlist[[conditionNames[[1]]]]$genelist <- (1- deseq$summary$pval * deseq$summary$logFC)
+    #names(res$clusterlist[[conditionNames[[1]]]]$genelist) <- deseq$summary$ID
+    
+    res$clusterlist[[conditionNames[[1]]]]$orig_matrix <- deseq$summary[c("logFC", "ID")]
+    names(res$clusterlist[[conditionNames[[1]]]]$orig_matrix) <- c("stat", "ENTREZID")
+    
+    res$plot <- shiny::renderPlot(DESeq2::plotMA(res$object))
   }
   else if(method == "edger"){
     source("~/ODIS2/R/runedgeR_exact.R")

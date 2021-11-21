@@ -1,13 +1,11 @@
-
-# takes in genelist, which should be the named list of stats from
-# analysisres$clusterlist$genelist, and will return a dataframe with columns stats, entrezid
-# and symbol
-genelistWithEntrezandSymbol <- function(genelist, species){
+# takes in OrigMatrix, which should be the matrix from 
+# analysisres$clusterlist$OrigMatrix, which contains a stat and ENTREZID column, 
+# and will return a matrix with columns named stats, entrezid and symbol
+genelistWithEntrezandSymbol <- function(origMatrix, species){
   # select correct species. Would like more flexibility in this.
-  if(species== "Mus musculus"){
+  if(species == "Mus musculus"){
     require(org.Mm.eg.db)
     db = org.Mm.eg.db
-    species = "Mus musculus"
   }
   else if(species == "Homo sapiens"){
     require(org.Hs.eg.db)
@@ -20,11 +18,11 @@ genelistWithEntrezandSymbol <- function(genelist, species){
   
   
   # get SYMBOL from ENTREZID
-  df <- clusterProfiler::bitr(names(genelist),
+  df <- clusterProfiler::bitr(origMatrix$ENTREZID,
                                   fromType = "ENTREZID", toType = "SYMBOL",
                                   OrgDb = db)
   # add statistic
-  df$stat <- genelist
+  df$stat <- origMatrix$stat
   
   return(df)
 }

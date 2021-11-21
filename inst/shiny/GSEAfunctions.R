@@ -1,7 +1,7 @@
 # prepares genesets to be compatible with ODIS.GSEA
 
 
-# issue -- update to allow species selection and category/subcategory selection, as well as user submitted pathways
+# would like to update to allow subcategory selection, as well as user submitted pathways
 prepareGenesets <- function(species, selectPathList){
   library(msigdbr)
   list_of_sets = list()
@@ -38,13 +38,18 @@ prepareGenesets <- function(species, selectPathList){
 }
 
 
-# be sure to match species above
+# be sure to match species above (??)
 ODISGSEA_helper <- function(analysisres, gmtList, pval){
   for (cluster in 1:length(analysisres$clusterlist)) {
     for(pathway in gmtList){
+      #prepare stat as named list
+      stat <- analysisres$clusterlist[[cluster]]$orig_matrix$stat
+      names(stat) <- analysisres$clusterlist[[cluster]]$orig_matrix$ENTREZID
+      
       print(pathway)
       source("~/ODIS2/R/ODISGSEA.R") # issue
-      res <- ODISGSEA(gene_list = analysisres$clusterlist[[cluster]]$genelist, theGoFile = pathway, pval = pval)
+
+      res <- ODISGSEA(gene_list = stat, theGoFile = pathway, pval = pval)
       analysisres$clusterlist[[cluster]][[pathway]] <- res
     }
   }

@@ -3,7 +3,7 @@ library(matrixStats)
 
 # function designed to return NMF output compatible with downstream GSEA analysis
 # Will return the ordered W matrix, or string describing error encountered
-NMFforShiny <- function(dataset, rank = 3, scoreMethod = "log2", nrun = 30){
+NMFforShiny <- function(dataset, rank = 3, scoreMethod, nrun = 30){
   # issue -- check not implemented
   #check that dataset contains only non-negative numbers
   print("removing rows where all values are 0")
@@ -27,31 +27,37 @@ NMFforShiny <- function(dataset, rank = 3, scoreMethod = "log2", nrun = 30){
   
   
   #run NMF
-  print("nmf function")
   nmfresult <- nmf(dataset, rank, .options = "p2")
-  #score W matrix
+  W <- nmfresult@fit@W
   
-  # **Place holder**
   # methods to order W matrix
-  # if (scoreMethod == "log2fc"){
-  #   execute log2fc
-  #}
-  # else if(){
-  #   etc
-  #}
-  #else(
+  #"percent expression" = "per", "pattern markers" = "pm", "log2fc" = "fc", "diff of cols" = "diff"
   print("ordering by W value")
-  #)
+  source("~/ODIS2/inst/shiny/nmf_scoring_methods.R")
+  if(scoreMethod == "per"){
+    wscored <- percentScore(W)
+  }
+  else if(scoreMethod == "pm"){
+    wscored <- patternMarker(W)
+  }
+  else if(scoreMethod == "fc"){
+    wscored <- fc(W)
+  }
+  else if(scoreMethod == "diff"){
+    wscored <- diffAvg(W)
+  }
 
   
   analysisres <- list()
   #analysisres$clusterlist <- vector(mode = "list", length = rank)
   for(i in 1:rank) {
-    analysisres$clusterlist[[paste0("V",i)]]$genelist <- nmfresult@fit@W[ , i]
+    origMatrix <- data.frame(stat = wscored[, i], ENTREZID = row.names(W))
+    analysisres$clusterlist[[paste0("V",i)]]$orig_matrix <- origMatrix
+    #analysisres$clusterlist[[paste0("V",i)]]$genelist <- wscored[ , i]
   }
   #names(analysisres) <- colnames(nmfresult)
   analysisres$object <- nmfresult
-  analysisres$plot <- renderPlot(consensusmap(globals$analysisres$object))
+  analysisres$plot <- renderPlot(consensusmap(analysisres$object))
   
   return(analysisres)
 }

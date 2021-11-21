@@ -19,6 +19,7 @@ prepareLLB <- function(){
   condition <- c(rep("liver", 3), rep("brain", 3), rep("lung", 3), rep("mixed", 33))
   
   LLB <- list(ex = ex, condition= condition)
+  LLB$species <- "Rattus norvegicus"
   
   #detach(package:annotate,unload=TRUE)
   #detach(package:rat2302.db,unload=TRUE)
@@ -48,6 +49,7 @@ prepareSnyder <- function(){
   condition <- full_Snyder$sampInfo$`hnf4a status`
   
   snyder = list(ex = ex, condition = condition)
+  snyder$species <- "Mus musculus"
 
   saveRDS(snyder, file = "~/ODIS2/data/full_snyder_ex.Rds")
 }
