@@ -18,7 +18,7 @@ source("~/ODIS2/inst/shiny/shinyNMF.R") # :(
 # -------------------------------------------------------------
 ui <- fluidPage(
     # Application title
-    titlePanel("TITLE"),
+    titlePanel("ODIS"),
     
     # --------------
     # -- SIDE BAR --

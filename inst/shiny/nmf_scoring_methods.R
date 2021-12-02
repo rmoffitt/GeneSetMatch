@@ -55,7 +55,7 @@ percentScore <- function(W){
 }
 
 
-# desription
+# description
 diffAvg <- function(W){
   scored <- matrix(ncol = ncol(W), nrow = nrow(W))
   for(col in 1:ncol(W)){
