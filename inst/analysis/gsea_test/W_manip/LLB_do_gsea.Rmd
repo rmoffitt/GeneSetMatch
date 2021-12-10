@@ -21,17 +21,22 @@ library(BiocParallel)
 
 
 LiverLungBrain <- readRDS("~/ODIS2/data/LiverLungBrain.rds")
-doNorm <- F #calculate score on normalized W
+doNorm <- F #calculate score on normalized W, no longer looking at this in analysis. Keep False.
 doW <- T #calculate score on un-normalized W
+useAllPathways <- T #run GSEA with all C8 pathways when true, otherwise uses C8 pathways specific to each organ
+scale <- F 
+gseaparam0 <- T # when true set gseaParam = 0 for all scores, otherwise uses default p = 1
+
+rank <- 3 # don't change
 ```
 
-```{r LLB to emsembl and set up seperate}
+```{r LLB to emsembl and set up seperate organs}
 W <- LiverLungBrain$unmixed
 #genes <- rownames(W)
 
 genes <- rownames(W)
 W$PROBEID <- rownames(W)
-convert <- select(rat2302.db, genes, c("SYMBOL","ENTREZID", "ENSEMBL")) 
+convert <- AnnotationDbi::select(rat2302.db, genes, c("SYMBOL","ENTREZID", "ENSEMBL")) 
 convert <- convert[match(unique(convert$SYMBOL), convert$SYMBOL),]
 W <- merge(W, convert, "PROBEID")
 W <- W[which(!is.na(W$ENTREZID)),]
@@ -52,6 +57,7 @@ rm(convert)
 ```
 
 ```{r Normalization}
+# no longer used 
 normW <- log(W)
 sampleMean <- t(apply(normW, 2, mean))
 for(sample in 1:ncol(W)){
@@ -97,20 +103,42 @@ return(log2fc)
 
 if(doW){
   log2fcW <- fc(W, 1)
+  if(scale){
+    log2fcW <- as.data.frame(scale(log2fcW))
+  }
   liver$log2fcW <- log2fcW$liver
   lung$log2fcW <- log2fcW$lung
   brain$log2fcW <- log2fcW$brain
+  
+  rm(log2fcW)
 }
 if(doNorm){
   log2fcNorm <- fc(normW, 1)
+  if(scale){
+    log2fcWNorm <- as.data.frame(scale(log2fcWNorm))
+  }
   liver$log2fcNorm <- log2fcNorm$liver
   lung$log2fcNorm <- log2fcNorm$lung
   brain$log2fcNorm <- log2fcNorm$brain
+  
+  rm(log2fcNorm)
 }
-
-rm(log2fcNorm)
-rm(log2fcW)
 ```
+
+```{r patternmarkers exploration}
+# does not affect LLB, just exploring max and minimum scores and how to modify
+k = 3
+
+scores <- t(data.frame("V1" = c(0, sqrt(2), sqrt(2)),
+                     "V2" = c(sqrt(k-1), sqrt(k-1), sqrt(k-1)),
+                     "V3" = c(sqrt(k), sqrt(k-2), sqrt(k-2))
+                     #, "V4" = c(0, 0, 0)
+                  ))
+
+modifyScores <- (sqrt(k-1) - scores)^3
+
+```
+
 
 ```{r patternMarkers}
 # https://github.com/FertigLab/CoGAPS/blob/0add1d99958822200dc812f3e52f73b0d2f7d866/R/methods-CogapsResult.R
@@ -134,7 +162,9 @@ patternMarker <- function(W){
   )
 }
 
+rank <- 3 # set for LiverLungBrain
 maxPM <- 1.732051
+maxPM <- sqrt(rank)
 #maxPM <- 2
 #maxPM <- 10
 
@@ -142,14 +172,25 @@ if(doW){
   patternMarkW <- patternMarker(W)
   colnames(patternMarkW) <- colnames(W)
   patternMarkW <- as.data.frame(patternMarkW)
+  if(scale){
+    patternMarkW <- as.data.frame(scale(patternMarkW))
+  }
   
   liver$patternMarkW <- patternMarkW$liver
   lung$patternMarkW <- patternMarkW$lung
   brain$patternMarkW <- patternMarkW$brain
   
-  liver$posPatMarkW <- (-1 * patternMarkW$liver)
-  lung$posPatMarkW <- (-1 *  patternMarkW$lung)
-  brain$posPatMarkW <- (-1 * patternMarkW$brain)
+  #liver$PatMarkWx1 <- (-1 * patternMarkW$liver)
+  #lung$PatMarkWx1 <- (-1 *  patternMarkW$lung)
+  #brain$PatMarkWx1 <- (-1 * patternMarkW$brain)
+
+  liver$transformPMW <- (sqrt(rank-1)/2 - patternMarkW$liver)^3 
+  lung$transformPMW <- (sqrt(rank-1)/2 - patternMarkW$lung)^3
+  brain$transformPMW <- (sqrt(rank-1)/2 - patternMarkW$brain)^3 
+  
+  #liver$posPatMarkW <- (maxPM - patternMarkW$liver)
+  #lung$posPatMarkW <- (maxPM - patternMarkW$lung)
+  #brain$posPatMarkW <- (maxPM - patternMarkW$brain)
   
   rm(patternMarkW)
 }
@@ -163,9 +204,13 @@ if(doNorm){
   lung$patternMarkNorm <- patternMarkNorm$lung
   brain$patternMarkNorm <- patternMarkNorm$brain
   
-  liver$posPatMarkNorm <- (-1 * patternMarkNorm$liver)
-  lung$posPatMarkNorm <- (-1 * patternMarkNorm$lung)
-  brain$posPatMarkNorm <- (-1 * patternMarkNorm$brain)
+  #liver$PatMarkNormx1 <- (-1 * patternMarkNorm$liver)
+  #lung$PatMarkNormx1 <- (-1 * patternMarkNorm$lung)
+  #brain$PatMarkNormx1 <- (-1 * patternMarkNorm$brain)
+  
+  #liver$posPatMarkNorm <- (maxPM - patternMarkNorm$liver)
+  #lung$posPatMarkNorm <- (maxPM - patternMarkNorm$lung)
+  #brain$posPatMarkNorm <- (maxPM - patternMarkNorm$brain)
   
   rm(patternMarkNorm)
 }
@@ -179,6 +224,9 @@ percentScore <- function(W){
 
 if(doW){
   percentW <- percentScore(W)
+  if(scale){
+    percentW <- as.data.frame(scale(percentW))
+  }
   liver$percentW <- percentW$liver
   lung$percentW <- percentW$lung
   brain$percentW <- percentW$brain
@@ -207,6 +255,9 @@ diffAvg <- function(W){
 
 if(doW){
   diffAW <- diffAvg(W)
+  if(scale){
+    diffAW <- as.data.frame(scale(diffAW))
+  }
   liver$diffAW <- diffAW$liver
   lung$diffAW <- diffAW$lung
   brain$diffAW <- diffAW$brain
@@ -222,37 +273,50 @@ if(doNorm){
 
 # =================================================================
 
-diffSum <- function(W){
-  scored <- data.frame(matrix(ncol = ncol(W), nrow = nrow(W)))
-  for(col in 1:ncol(W)){
-    scored[,col] <- W[,col] - rowSums(W[,-col])
-  }
-  colnames(scored) <- colnames(W)
-  return(scored)
-}
+#diffSum <- function(W){
+#  scored <- data.frame(matrix(ncol = ncol(W), nrow = nrow(W)))
+#  for(col in 1:ncol(W)){
+#    scored[,col] <- W[,col] - rowSums(W[,-col])
+#  }
+#  colnames(scored) <- colnames(W)
+#  return(scored)
+#}
 
-if(doW){
-  diffSW <- diffSum(W)
-  liver$diffSW <- diffSW$liver
-  lung$diffSW <- diffSW$lung
-  brain$diffSW <- diffSW$brain
-  rm(diffSW)
-}
-if(doNorm){
-  diffSNorm <- diffSum(normW)
-  liver$diffSNorm <- diffSNorm$liver
-  lung$diffSNorm <- diffSNorm$lung
-  brain$diffSNorm <- diffSNorm$brain
-  rm(diffSNorm)
-}
+#if(doW){
+#  diffSW <- diffSum(W)
+#  if(scale){
+#    diffSW <- as.data.frame(scale(diffSW)
+#  }
+#  liver$diffSW <- diffSW$liver
+#  lung$diffSW <- diffSW$lung
+#  brain$diffSW <- diffSW$brain
+#  rm(diffSW)
+#}
+#if(doNorm){
+#  diffSNorm <- diffSum(normW)
+#  liver$diffSNorm <- diffSNorm$liver
+#  lung$diffSNorm <- diffSNorm$lung
+#  brain$diffSNorm <- diffSNorm$brain
+#  rm(diffSNorm)
+#}
 
 ```
 
 ```{r top expression}
 if(doW){
+  if(scale){
+    liver$expressW <- scale(W$liver)
+    lung$expressW <- scale(W$lung)
+    brain$expressW <- scale(W$brain)
+    
+    y <- dnorm(liver$expressW)
+    plot(liver$expressW, y)
+  }
+  else{
   liver$expressW <- W$liver
   lung$expressW <- W$lung
   brain$expressW <- W$brain
+  }
 }
 if(doNorm){
   liver$expressNorm <- normW$liver
@@ -261,11 +325,13 @@ if(doNorm){
 }
 ```
 
+
 ```{r random expression}
-liver$random <- runif(nrow(liver), min = 0, max = 10)
-lung$random <- runif(nrow(lung), min = 0, max = 10)
-brain$random <- runif(nrow(brain), min = 0, max = 10)
+liver$random <- runif(nrow(liver), min = 0, max = 1)
+lung$random <- runif(nrow(lung), min = 0, max = 1)
+brain$random <- runif(nrow(brain), min = 0, max = 1)
 ```
+
 
 ```{r scale score by expression}
 #function to score a scale, not currently written to run on anything, but can call function 
@@ -284,7 +350,10 @@ expressScale <- function(scoreMatrix, expressionScaling = .001, scoreScaling = 1
 }
 ```
 
+
 ```{r order top genes}
+#essentially useless since fgsea reorders based on high to low, but expected by future code chunks, so it remains 
+
 orderAsList <- function(toOrder){
   lowScores <- c("patternMarkNorm", "patternMarkW") #scores where a low score indicates an exemplar gene, will be sorted increasing rather than decreasing
   #negScores <- c("log2fcW", "log2fcNorm") # scores which have negative values as well as positive values. Values will be truncated at 0 to maintain positive scores
@@ -312,28 +381,8 @@ lungOrder <- orderAsList(lung)
 brainOrder <- orderAsList(brain)
 ```
 
+
 ```{r select pathways}
-c8Pathways <- msigdbr::msigdbr(species = "Rattus norvegicus", category = "C8") #%>% dplyr::select(gs_name, entrez_gene)
-#Liver pathways
-aizaraniLiver <- c8Pathways[grep("^AIZARANI_LIVER", c8Pathways$gs_name), ]
-aizaraniLiver <- aizaraniLiver[!is.na(aizaraniLiver$entrez_gene), ]
-
-#Lung pathways
-travagliniLung <- c8Pathways[grep("^TRAVAGLINI_LUNG", c8Pathways$gs_name), ]
-travagliniLung <- travagliniLung[!is.na(travagliniLung$entrez_gene), ]
-
-#Brain pathways options...
-fetalCerebrum <- c8Pathways[grep("^DESCARTES_FETAL_CEREBRUM", c8Pathways$gs_name), ]
-fetalCerebellum <- c8Pathways[grep("^DESCARTES_FETAL_CEREBELLUM", c8Pathways$gs_name), ]
-fetalBrain <- rbind(fetalCerebellum, fetalCerebrum)
-#fanBrain <- c8Pathways[grep("^FAN_EMBRYONIC", c8Pathways$gs_name), ]
-#fanBrain <- fanBrain[!is.na(fanBrain$entrez_gene), ]
-#mannoBrain <- c8Pathways[grep("^MANNO_MIDBRAIN", c8Pathways$gs_name), ]
-#mannoBrain <- mannoBrain[!is.na(mannoBrain$entrez_gene), ]
-#DESCARTES_FETAL_CEREBRUM --> fetal
-#FAN_EMBRYONIC [BRAIN] --> embryonic
-#MANNO_MIDBRAIN --> embryonic
-
 msigdbrToGMT <- function(msigOut){
   pathway_names <- unique(msigOut$gs_name)
   gene_sets_listed <- NULL
@@ -343,11 +392,13 @@ msigdbrToGMT <- function(msigOut){
   for(i in 1:nrow(msigOut)){
     if(msigOut$gs_name[i] == cur_path){
       temp <- c(temp, msigOut$entrez_gene[i])
+      #temp <- c(temp, msigOut$gene_symbol[i]) # return gene symbol instead of entrezID
     }
     else{
       gene_sets_listed[[count]] <- temp
       count <- count + 1 
       temp <- msigOut$entrez_gene[i]
+      #temp <- msigOut$gene_symbol[i]
       cur_path <- msigOut$gs_name[i]
     }
     
@@ -359,15 +410,47 @@ msigdbrToGMT <- function(msigOut){
   return(gene_sets_listed)
 }
 
+# ----------------------------------------------------
+
+if(useAllPathways){
+  allPathways <-  msigdbr::msigdbr(species = "Rattus norvegicus", category = "C8")
+  allPathways <- msigdbrToGMT(allPathways)
+  
+  save(allPathways, file = "allPathways.Rdata")
+}
+
+c8Pathways <- msigdbr::msigdbr(species = "Rattus norvegicus", category = "C8") #%>% dplyr::select(gs_name, entrez_gene)
+#Liver pathways
+aizaraniLiver <- c8Pathways[grep("^AIZARANI_LIVER", c8Pathways$gs_name), ]
+aizaraniLiver <- aizaraniLiver[!is.na(aizaraniLiver$entrez_gene), ]
+  
+#Lung pathways
+travagliniLung <- c8Pathways[grep("^TRAVAGLINI_LUNG", c8Pathways$gs_name), ]
+travagliniLung <- travagliniLung[!is.na(travagliniLung$entrez_gene), ]
+  
+#Brain pathways options...
+fetalCerebrum <- c8Pathways[grep("^DESCARTES_FETAL_CEREBRUM", c8Pathways$gs_name), ]
+fetalCerebellum <- c8Pathways[grep("^DESCARTES_FETAL_CEREBELLUM", c8Pathways$gs_name), ]
+fetalBrain <- rbind(fetalCerebellum, fetalCerebrum)
+#fanBrain <- c8Pathways[grep("^FAN_EMBRYONIC", c8Pathways$gs_name), ]
+#fanBrain <- fanBrain[!is.na(fanBrain$entrez_gene), ]
+#mannoBrain <- c8Pathways[grep("^MANNO_MIDBRAIN", c8Pathways$gs_name), ]
+#mannoBrain <- mannoBrain[!is.na(mannoBrain$entrez_gene), ]
+#DESCARTES_FETAL_CEREBRUM --> fetal
+#FAN_EMBRYONIC [BRAIN] --> embryonic
+#MANNO_MIDBRAIN --> embryonic
+  
 aizaraniLiver <- msigdbrToGMT(aizaraniLiver)
 travagliniLung <- msigdbrToGMT(travagliniLung)
 fetalBrain <- msigdbrToGMT(fetalBrain)
+
 ```
+
 
 ```{r rat GSEA}
 #supply with ordered ENTREZID named stats for Rat
 #modified cluster_wrapper since it does not accept rat :(
-ratGSEA <- function(geneList, genePathways, cores = 2, nPermSimple, scoreT = "pos"){
+ratGSEA <- function(geneList, genePathways, cores = 2, nPermSimple = 10000, scoreT = "pos", gseaParam = 1, eps){
   print(scoreT)
   db = org.Rn.eg.db
   species = "rat"
@@ -387,7 +470,8 @@ ratGSEA <- function(geneList, genePathways, cores = 2, nPermSimple, scoreT = "po
                                 eps = 0, 
                                 nPermSimple = nPermSimple, 
                                 scoreType = scoreT,
-                                BPPARAM = MulticoreParam(workers = cores))
+                                nproc = cores,
+                                gseaParam = gseaParam) #want this only for PatMarkx1?
   
   return(res)
 }
@@ -395,38 +479,79 @@ ratGSEA <- function(geneList, genePathways, cores = 2, nPermSimple, scoreT = "po
 
 ```{r run fgsea on ordered lists}
 dofgsea <- function(sampleList, genePathways){
-  #negScores <- c("log2fcW", "log2fcNorm") # scores which have negative values as well as positive values. All other scores are run using scoreType = "pos"
-  negScores <- c()
   resList <- vector(mode="list")
   for(i in names(sampleList)){
     print(i)
-    if(i %in% negScores){
-      resList[[i]] <- ratGSEA(sampleList[[i]], genePathways = genePathways, nPermSimple = 10000, scoreT = "std")
+    if(i == "PatMarkWx1"){
+      resList[[i]] <- ratGSEA(sampleList[[i]], genePathways = genePathways, gseaParam = 0)
+    }
+    else if(gseaparam0){
+      resList[[i]] <- ratGSEA(sampleList[[i]], genePathways = genePathways, gseaParam = 0)
     }
     else{
-      resList[[i]] <- ratGSEA(sampleList[[i]], genePathways = genePathways, nPermSimple = 10000)
+      resList[[i]] <- ratGSEA(sampleList[[i]], genePathways = genePathways)
     }
   }
   return(resList)
 }
 
-liverRes <- dofgsea(liverOrder, aizaraniLiver)
-save(liverRes, file = "liverRes.Rdata")
+if(scale){
+  liverRes <- dofgsea(liverOrder, aizaraniLiver)
+  save(liverRes, file = "norLiverRes.Rdata")
+  
+  lungRes <- dofgsea(lungOrder, travagliniLung)
+  save(lungRes, file="norLungRes.Rdata")
+  
+  brainRes <- dofgsea(brainOrder, fetalBrain)
+  save(brainRes, file = "norBrainRes.Rdata")
+  
+}else if(useAllPathways){
+  liverRes <- dofgsea(liverOrder, allPathways)
+  save(liverRes, file = "allLiverRes.Rdata")
+  
+  lungRes <- dofgsea(lungOrder, allPathways)
+  save(lungRes, file="allLungRes.Rdata")
+  
+  brainRes <- dofgsea(brainOrder, allPathways)
+  save(brainRes, file = "allBrainRes.Rdata")
+  
+  saveRDS(allPathways, file = "allPathways.rds")
+  
+}else if(gseaparam0){
+  liverRes <- dofgsea(liverOrder, aizaraniLiver)
+  save(liverRes, file = "liverRes0.Rdata")
+  
+  lungRes <- dofgsea(lungOrder, travagliniLung)
+  save(lungRes, file="lungRes0.Rdata")
+
+  
+  brainRes <- dofgsea(brainOrder, fetalBrain)
+  save(brainRes, file = "brainRes0.Rdata")
+}else{
+  liverRes <- dofgsea(liverOrder, aizaraniLiver)
+  save(liverRes, file = "liverRes.Rdata")
+  
+  lungRes <- dofgsea(lungOrder, travagliniLung)
+  save(lungRes, file="lungRes.Rdata")
+
+  
+  brainRes <- dofgsea(brainOrder, fetalBrain)
+  save(brainRes, file = "brainRes.Rdata")
+}
 save(liverOrder, file = "liverOrder.Rdata")
 save(liver, file = "liver.Rdata")
 saveRDS(aizaraniLiver, file = "liverPathways.rds")
 
-lungRes <- dofgsea(lungOrder, travagliniLung)
-save(lungRes, file="lungRes.Rdata")
 save(lung, file = "lung.Rdata")
 save(lungOrder, file = "lungOrder.Rdata")
 saveRDS(travagliniLung, file = "lungPathways.rds")
 
-brainRes <- dofgsea(brainOrder, fetalBrain)
-save(brainRes, file = "brainRes.Rdata")
 save(brainOrder, file = "brainOrder.Rdata")
 save(brain, file = "brain.Rdata")
-saveRDS(fetalBrain, file = "brainPathways.rds")
+saveRDS(fetalBrain, file = "brainPathways.rds") 
+
+
+
 ```
 
 ```{r Distinguish between types?}
