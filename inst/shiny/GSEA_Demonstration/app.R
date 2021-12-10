@@ -159,8 +159,11 @@ server <- function(input, output, session) {
             output$analysisPlot <- renderPlot(consensusmap(globals$dataset_list[[input$datasetRadio]]$analysis))
         }
         else if(input$datasetRadio == "tm"){
-            library(Seurat)
-            output$analysisPlot <- renderPlot(DimPlot(globals$dataset_list[[input$datasetRadio]]$object, group.by = "cell_ontology_class", reduction = "umap"))
+            output$analysisPlot <- renderImage({
+                list(src = './tm_umap.png')
+            }, deleteFile = FALSE)
+            #library(Seurat)
+            #output$analysisPlot <- renderPlot(DimPlot(globals$dataset_list[[input$datasetRadio]]$object, group.by = "cell_ontology_class", reduction = "umap"))
         }
     })
     #show ordered genelist
@@ -233,9 +236,13 @@ server <- function(input, output, session) {
         i <- which(names(globals$dataset_list[[input$datasetRadio]]$GSEA[[input$analysisOptions]][[input$clusterRadio]]) == input$viewGeneset)
         }
         tagList(
-            # issue... getwd() doesn't seem to work, so not sure how to determine where file has been saved to.
-            # this bandaid works for now though...!
-            tags$iframe(style="height:600px; width:100%", src=paste0("http://104.41.140.14:8787/files/ODIS2/inst/shiny/GSEA_Demonstration/heatmaps/", input$analysisOptions, "/", globals$dataset_list[[input$datasetRadio]]$heatmapPlots[[input$analysisOptions]][[input$clusterRadio]][[i]]))
+            print(paste0(getwd(),
+                             "/heatmaps/",
+                             input$analysisOptions, "/", globals$dataset_list[[input$datasetRadio]]$heatmapPlots[[input$analysisOptions]][[input$clusterRadio]][[i]])),
+            tags$iframe(style="height:600px; width:100%", src=paste0(getwd(),
+            #"http://104.41.140.14:8787/files/ODIS2/inst/shiny/GSEA_Demonstration/heatmaps/",
+                                                                     "./heatmaps/",
+                                                                     input$analysisOptions, "/", globals$dataset_list[[input$datasetRadio]]$heatmapPlots[[input$analysisOptions]][[input$clusterRadio]][[i]]))
         )
         })
 }
