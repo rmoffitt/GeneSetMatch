@@ -20,7 +20,7 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
     return(as.dist(d))}
   
   #define color palette - different color for each K and range of pigment for log2foldchange
-  my_palette <- colorRampPalette(c("blue", "lightgrey", "red"))(n = 299)
+  my_palette <- colorRampPalette(c("blue", "lightgrey", "pink"))(n = 299)
   
   #initiate list of plots
   plots <- list()
@@ -43,7 +43,7 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
       print(dim(agg_leading_edge)) #checks dim of agg_leading_edge, should be 30 x 2
       
       #make a small matrix of agg_leading_edge and theseResults$pathways for each k
-      theMatrix <- matrix(data = agg_leading_edge$log2FoldChange,
+      theMatrix <- matrix(data = 1,
                           byrow = T,
                           nrow = length(theseResults$pathway),
                           ncol = length(agg_leading_edge$ENTREZID))
@@ -57,23 +57,33 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
       
       for(j in 1:length(theseResults$leadingEdge)){
         tle <- theseResults$leadingEdge[[j]]
-        theMatrix[j, !(colnames(theMatrix) %in% tle)] <- 0.01
+        theMatrix[j, !(colnames(theMatrix) %in% tle)] <- 0
       }
       image(t(theMatrix))
       
-    #TO DO HERE#  #take standard deviation of the rows and columns, and remove ones that are 0
+     #take standard deviation of the rows and columns
+      library(matrixStats)
+      theMatrix_row_std = rowSds(theMatrix) # create a vector with all rowSds, keeps the order of rows in theMatrix
+      theMatrix_col_std = colSds(theMatrix)
       
-      #Cluster theMatrix by distfun (defined at beginning) #refer to this later, before putting thebigmatrix into heatmap
-      rowCluster <- hclust(distfun(theMatrix))
-      colCluster <- hclust(distfun(t(theMatrix)))
+      #remove all rows and cols that have less stdev that 0.01 to avid empty space in plot
+      theMatrix <- theMatrix[!(theMatrix_row_std < 0.01), !(theMatrix_col_std < 0.01)]
       
+      #somewhox .x and .y is added to genenames in this merge, because genes show up in more than one V, once this is fixed 129 should work
       if(typeof(theBigMatrix)=="list"){
         #first iteration
         theBigMatrix <- theMatrix
       }else{
-        theBigMatrix <- merge(theBigMatrix,theMatrix,by = "row.names",all=TRUE)
-        rownames(theBigMatrix) <- theBigMatrix$Row.names #adding pathway names into rownames
-        theBigMatrix <- theBigMatrix[,!(names(theBigMatrix) %in% "Row.names")] #removing callumn with pathways names
+        rMatrix1 <- rownames(theBigMatrix) #split thematrix into the unique and common part(by genes) (save U and C parts as separate matrices), 
+        rMatrix2 <- rownames(theMatrix)
+        #u <- setdiff(rMatrix2,rMatrix1) #use setdiff(rMatrix2, rMatrix1) for unique 
+        c <- intersect(rMatrix1,rMatrix2) #use intersect(rMatrix2, rMatrix1) for common
+        #just merge the unique part
+        theBigMatrix <- merge(theBigMatrix,theMatrix, by = setdiff(rMatrix2,rMatrix1))
+        #mergedmatrix[rC2,cC2] <- mergedmatrix[rC2, cC2] + c2
+        
+        rownames(theBigMatrix) <- theBigMatrix$Row.names #adding pathway names into row names
+        theBigMatrix <- theBigMatrix[,!(names(theBigMatrix) %in% "Row.names")] #removing column with pathways names
         theBigMatrix <- as.matrix(theBigMatrix)
       }
       
@@ -83,10 +93,49 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
       print(dim(theBigMatrix))
     }
     
-image(t(theBigMatrix))    
-
-image(theBigMatrix)
 theBigMatrix[!is.finite(theBigMatrix)] <- 0 #removing NA/NAN/Inf from matrix before plotting
+image(t(theBigMatrix))
+
+#re-order theBigMatrix ()
+rowCluster <- hclust(distfun(theBigMatrix))
+colCluster <- hclust(distfun(t(theBigMatrix)))
+image(t(theBigMatrix))  
+theBigMatrixOrdered <- theBigMatrix[rowCluster$order, colCluster$order] #ordered rows and columns by rowClust$order
+image(t(theBigMatrixOrdered))
+
+#build forloop that determines RGB triplet for each gene
+#WHAT ROW IS IT, WHAT COLLUMS IS IT, WHERE AM I PULLING IT FROM
+#IS THE VALUE O,1,2
+#ASSIGN COLOR TO 0,1,2
+#MAP BACK TO NEW MATRIX FULL OF RGB
+#fins a imaging method for showing rgb and make sure it expects the data type that is being built in the for loop
+rbgmatrix <- matrix(data = "#FFFFFF",
+                    ncol = length(colnames(theBigMatrixOrdered)),
+                    nrow = length(rownames(theBigMatrixOrdered)))
+
+colnames(rbgmatrix) = colnames(theBigMatrixOrdered)
+rownames(rbgmatrix) = rownames(theBigMatrixOrdered)
+
+for(setID in 1:ncol(theBigMatrixOrdered)){
+  for(geneID in 1:nrow(theBigMatrixOrdered)){
+    tbmo <- theBigMatrixOrdered[geneID,setID]
+    print(tbmo)
+    
+    if (tbmo == 0){
+      rbgmatrix[geneID,setID] <- "#000000" 
+    }
+    else {e <- colnames(theBigMatrixOrdered)[geneID]
+    r <- res_nmf$V1$orig_matrix[e,"log2FoldChange"]
+    g <- res_nmf$V2$orig_matrix[e,"log2FoldChange"]
+    b <- res_nmf$V3$orig_matrix[e,"log2FoldChange"]
+    
+    rgb <- 
+    
+    }
+  }
+}
+
+grid.raster(rbgmatrix)
 
 # heatmap it, it should already be clustered
       
@@ -124,6 +173,7 @@ theBigMatrix[!is.finite(theBigMatrix)] <- 0 #removing NA/NAN/Inf from matrix bef
       
       dev.off()
   }
-}
+
+  }
 
 
