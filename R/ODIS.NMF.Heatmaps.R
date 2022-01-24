@@ -74,17 +74,21 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
         #first iteration
         theBigMatrix <- theMatrix
       }else{
-        rMatrix1 <- rownames(theBigMatrix) #split thematrix into the unique and common part(by genes) (save U and C parts as separate matrices), 
-        rMatrix2 <- rownames(theMatrix)
-        #u <- setdiff(rMatrix2,rMatrix1) #use setdiff(rMatrix2, rMatrix1) for unique 
-        c <- intersect(rMatrix1,rMatrix2) #use intersect(rMatrix2, rMatrix1) for common
-        #just merge the unique part
-        theBigMatrix <- merge(theBigMatrix,theMatrix, by = setdiff(rMatrix2,rMatrix1))
-        #mergedmatrix[rC2,cC2] <- mergedmatrix[rC2, cC2] + c2
+        theBigMatrix <- merge(theBigMatrix, theMatrix, by = "row.names", all = TRUE)
+        rownames(theBigMatrix) <- theBigMatrix$Row.names
+        theBigMatrix <- theBigMatrix[, !(names(theBigMatrix) %in% "Row.names")]
+        theBigMatrix <- as.matrix(theMatrix)
         
-        rownames(theBigMatrix) <- theBigMatrix$Row.names #adding pathway names into row names
-        theBigMatrix <- theBigMatrix[,!(names(theBigMatrix) %in% "Row.names")] #removing column with pathways names
-        theBigMatrix <- as.matrix(theBigMatrix)
+        #rMatrix1 <- rownames(theBigMatrix) #split thematrix into the unique and common part(by genes) (save U and C parts as separate matrices), 
+        #rMatrix2 <- rownames(theMatrix)
+        #u <- setdiff(rMatrix2,rMatrix1) #use setdif(rMatrix2, rMatrix1) for unique 
+        #c <- intersect(rMatrix2,rMatrix1) #use intersect(rMatrix2, rMatrix1) for common
+        #just merge the unique part
+        #mergedmatrix[rC2,cC2] <- mergedmatrix[rC2, cC2] + c2
+        #theBigMatrix <- merge(theBigMatrix,theMatrix,by = "row.names",all=TRUE)
+        #rownames(theBigMatrix) <- theBigMatrix$Row.names #adding pathway names into row names
+        #theBigMatrix <- theBigMatrix[,!(names(theBigMatrix) %in% "Row.names")] #removing column with pathways names
+        #theBigMatrix <- as.matrix(theBigMatrix)
       }
       
       print(k)
@@ -95,6 +99,17 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
     
 theBigMatrix[!is.finite(theBigMatrix)] <- 0 #removing NA/NAN/Inf from matrix before plotting
 image(t(theBigMatrix))
+
+redundantX <- grep(pattern = ".x", colnames(theBigMatrix), value = T)
+redundantX <- gsub(pattern = "\\.x", replacement = "", x = redundantX)
+
+for (z in redundantX){
+  indX <- grep(colnames(theBigMatrix), pattern = z) #find the col indices of .x and .y
+  theBigMatrix[which(theBigMatrix[,indX[2]] == 1), #"if there is a 1 value in the ".y", make it a 1 in the ".x"
+               indX[1]] = 1
+  theBigMatrix = theBigMatrix[, -indX[2]] #remove the .y column
+  colnames(theBigMatrix)[indX[1]] = z #remove the .x by replacing it with original z
+}
 
 #re-order theBigMatrix ()
 rowCluster <- hclust(distfun(theBigMatrix))
@@ -128,10 +143,11 @@ for(setID in 1:ncol(theBigMatrixOrdered)){
     r <- res_nmf$V1$orig_matrix[e,"log2FoldChange"]
     g <- res_nmf$V2$orig_matrix[e,"log2FoldChange"]
     b <- res_nmf$V3$orig_matrix[e,"log2FoldChange"]
-    
-    rgb <- 
+    rgb <- c(r,g,b)
     
     }
+    
+    
   }
 }
 
