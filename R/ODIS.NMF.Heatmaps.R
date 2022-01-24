@@ -1,12 +1,9 @@
-#To discuss in meeting:
-#create colors based on K and not my_pallette
-#make heatmap not suck
-
+#Working with only one i because some have NA's
 res_nmf <- readRDS("./Snyder_NMF_V123.rds")
 gsea_results <- res_nmf
 i <- names(gsea_results[[1]][2])
 
-
+##
 ODIS.NMF.Heatmaps <- function(gsea_results){
   
   #define distance function for clustering
@@ -19,19 +16,18 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
     d <- (1-cor(t(x))) + as.matrix(pdist(sign(rowMeans(x))))
     return(as.dist(d))}
   
-  #define color palette - different color for each K and range of pigment for log2foldchange
-  my_palette <- colorRampPalette(c("blue", "lightgrey", "pink"))(n = 299)
+  #define color palette - different color for each K and range of pigment for log2foldchange -UNECCESARY?
+  #my_palette <- colorRampPalette(c("blue", "lightgrey", "pink"))(n = 299)
   
   #initiate list of plots
   plots <- list()
  
-  
   #this loop glues the small matrixes together
-  for(i in names(gsea_results[[1]])){ #for each experimnet V, pull object Vx 
+  for(i in names(gsea_results[[1]])){ #for each experiment V, pull object Vx 
     thisAnalysis <- gsea_results[[i]]
-    theBigMatrix = list() #every time I make a small matrix for each experiemnt (k), glue them together here
+    theBigMatrix = list() #every time I make a small matrix for each experiment (k), glue them together here
     
-    #this loop extracts top 30genes from each gmt.file and their top 30 associated pathways, and puths them into a clustered matrix
+    #this loop extracts top 30genes from each gmt.file and their top 30 associated pathways, and puts them into a clustered matrix
     for(k in names(gsea_results)){
       orig_matrix = gsea_results[[k]]$orig_matrix #pull out and separate for appropriate k every time
       theseResults <- gsea_results[[k]][[i]]$Results
@@ -118,12 +114,7 @@ image(t(theBigMatrix))
 theBigMatrixOrdered <- theBigMatrix[rowCluster$order, colCluster$order] #ordered rows and columns by rowClust$order
 image(t(theBigMatrixOrdered))
 
-#build forloop that determines RGB triplet for each gene
-#WHAT ROW IS IT, WHAT COLLUMS IS IT, WHERE AM I PULLING IT FROM
-#IS THE VALUE O,1,2
-#ASSIGN COLOR TO 0,1,2
-#MAP BACK TO NEW MATRIX FULL OF RGB
-#fins a imaging method for showing rgb and make sure it expects the data type that is being built in the for loop
+#This forloop determines RGB triplet for each gene, builds corresponding matrixes and plots a raster
 rbgmatrix <- matrix(data = "#FFFFFF",
                     ncol = length(colnames(theBigMatrixOrdered)),
                     nrow = length(rownames(theBigMatrixOrdered)))
@@ -140,18 +131,18 @@ for(setID in 1:ncol(theBigMatrixOrdered)){
       rbgmatrix[geneID,setID] <- "#000000" 
     }
     else {e <- colnames(theBigMatrixOrdered)[geneID]
-    r <- res_nmf$V1$orig_matrix[e,"log2FoldChange"]
+    r[geneID,setID] <- res_nmf$V1$orig_matrix[e,"log2FoldChange"] #build three matrices for each r g b
     g <- res_nmf$V2$orig_matrix[e,"log2FoldChange"]
     b <- res_nmf$V3$orig_matrix[e,"log2FoldChange"]
-    rgb <- c(r,g,b)
+    col <- rgb(r, g, b)
+    dim(col) <- dim(r)
     
     }
-    
     
   }
 }
 
-grid.raster(rbgmatrix)
+grid.raster(col)
 
 # heatmap it, it should already be clustered
       
