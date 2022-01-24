@@ -3,7 +3,7 @@ res_nmf <- readRDS("./Snyder_NMF_V123.rds")
 gsea_results <- res_nmf
 i <- names(gsea_results[[1]][2])
 
-##
+###
 ODIS.NMF.Heatmaps <- function(gsea_results){
   
   #define distance function for clustering
@@ -12,6 +12,7 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
     return(as.dist(d))}
   
   #original distance fucntion
+  library(pdist)
   distfun1 =  function(x) {
     d <- (1-cor(t(x))) + as.matrix(pdist(sign(rowMeans(x))))
     return(as.dist(d))}
@@ -21,7 +22,7 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
   
   #initiate list of plots
   plots <- list()
- 
+  
   #this loop glues the small matrixes together
   for(i in names(gsea_results[[1]])){ #for each experiment V, pull object Vx 
     thisAnalysis <- gsea_results[[i]]
@@ -43,12 +44,12 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
                           byrow = T,
                           nrow = length(theseResults$pathway),
                           ncol = length(agg_leading_edge$ENTREZID))
-
+      
       print(dim(theMatrix)) #checks dim of theMatrix, should be 30X30 or so
       
       rownames(theMatrix) <- theseResults$pathway #assign rownames (pathways)
       colnames(theMatrix) <- agg_leading_edge$ENTREZID #assign colnames (genes)
-       
+      
       #for each of the leading edges, clean out theMatrix
       
       for(j in 1:length(theseResults$leadingEdge)){
@@ -57,7 +58,7 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
       }
       image(t(theMatrix))
       
-     #take standard deviation of the rows and columns
+      #take standard deviation of the rows and columns
       library(matrixStats)
       theMatrix_row_std = rowSds(theMatrix) # create a vector with all rowSds, keeps the order of rows in theMatrix
       theMatrix_col_std = colSds(theMatrix)
@@ -93,94 +94,131 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
       print(dim(theBigMatrix))
     }
     
-theBigMatrix[!is.finite(theBigMatrix)] <- 0 #removing NA/NAN/Inf from matrix before plotting
-image(t(theBigMatrix))
-
-redundantX <- grep(pattern = ".x", colnames(theBigMatrix), value = T)
-redundantX <- gsub(pattern = "\\.x", replacement = "", x = redundantX)
-
-for (z in redundantX){
-  indX <- grep(colnames(theBigMatrix), pattern = z) #find the col indices of .x and .y
-  theBigMatrix[which(theBigMatrix[,indX[2]] == 1), #"if there is a 1 value in the ".y", make it a 1 in the ".x"
-               indX[1]] = 1
-  theBigMatrix = theBigMatrix[, -indX[2]] #remove the .y column
-  colnames(theBigMatrix)[indX[1]] = z #remove the .x by replacing it with original z
-}
-
-#re-order theBigMatrix ()
-rowCluster <- hclust(distfun(theBigMatrix))
-colCluster <- hclust(distfun(t(theBigMatrix)))
-image(t(theBigMatrix))  
-theBigMatrixOrdered <- theBigMatrix[rowCluster$order, colCluster$order] #ordered rows and columns by rowClust$order
-image(t(theBigMatrixOrdered))
-
-#This forloop determines RGB triplet for each gene, builds corresponding matrixes and plots a raster
-rbgmatrix <- matrix(data = "#FFFFFF",
-                    ncol = length(colnames(theBigMatrixOrdered)),
-                    nrow = length(rownames(theBigMatrixOrdered)))
-
-colnames(rbgmatrix) = colnames(theBigMatrixOrdered)
-rownames(rbgmatrix) = rownames(theBigMatrixOrdered)
-
-for(setID in 1:ncol(theBigMatrixOrdered)){
-  for(geneID in 1:nrow(theBigMatrixOrdered)){
-    tbmo <- theBigMatrixOrdered[geneID,setID]
-    print(tbmo)
+    theBigMatrix[!is.finite(theBigMatrix)] <- 0 #removing NA/NAN/Inf from matrix before plotting
+    image(t(theBigMatrix))
     
-    if (tbmo == 0){
-      rbgmatrix[geneID,setID] <- "#000000" 
-    }
-    else {e <- colnames(theBigMatrixOrdered)[geneID]
-    r[geneID,setID] <- res_nmf$V1$orig_matrix[e,"log2FoldChange"] #build three matrices for each r g b
-    g <- res_nmf$V2$orig_matrix[e,"log2FoldChange"]
-    b <- res_nmf$V3$orig_matrix[e,"log2FoldChange"]
-    col <- rgb(r, g, b)
-    dim(col) <- dim(r)
+    redundantX <- grep(pattern = ".x", colnames(theBigMatrix), value = T)
+    redundantX <- gsub(pattern = "\\.x", replacement = "", x = redundantX)
     
+    for (z in redundantX){
+      indX <- grep(colnames(theBigMatrix), pattern = z) #find the col indices of .x and .y
+      theBigMatrix[which(theBigMatrix[,indX[2]] == 1), #"if there is a 1 value in the ".y", make it a 1 in the ".x"
+                   indX[1]] = 1
+      theBigMatrix = theBigMatrix[, -indX[2]] #remove the .y column
+      colnames(theBigMatrix)[indX[1]] = z #remove the .x by replacing it with original z
     }
     
+    #re-order theBigMatrix ()
+    rowCluster <- hclust(distfun1(theBigMatrix))
+    colCluster <- hclust(distfun1(t(theBigMatrix)))
+    
+    image(t(theBigMatrix))  
+    theBigMatrixOrdered <- theBigMatrix[rowCluster$order, colCluster$order] #ordered rows and columns by rowClust$order
+    image(t(theBigMatrixOrdered))
+    
+    #This forloop determines RGB triplet for each gene, builds corresponding matrixes and plots a raster
+    rbgmatrix <- matrix(data = "#FFFFFF",
+                        ncol = length(colnames(theBigMatrixOrdered)),
+                        nrow = length(rownames(theBigMatrixOrdered)))
+    
+    colnames(rbgmatrix) = colnames(theBigMatrixOrdered)
+    rownames(rbgmatrix) = rownames(theBigMatrixOrdered)
+    
+    for(setID in 1:ncol(theBigMatrixOrdered)){
+      for(geneID in 1:nrow(theBigMatrixOrdered)){
+        tbmo <- theBigMatrixOrdered[geneID,setID]
+        print(tbmo)
+        
+        if (tbmo == 0){
+          rbgmatrix[geneID,setID] <- "#000000" 
+        }
+        else {e <- colnames(theBigMatrixOrdered)[geneID]
+        r <- res_nmf$V1$orig_matrix[e,"log2FoldChange"] #build three matrices for each r g b
+        g <- res_nmf$V2$orig_matrix[e,"log2FoldChange"]
+        b <- res_nmf$V3$orig_matrix[e,"log2FoldChange"]
+        col <- rgb(r, g, b)
+        dim(col) <- dim(r)
+        
+        }
+      }
+    }
+    
+    grid.raster(col)
+    
+    # heatmap it, it should already be clustered
+    
+    plots[[i]][[k]] <- list()
+    
+    pdf(paste0(i, "_", substr(names(thisAnalysis)[k],
+                              5, stop = 999), ".pdf"),
+        width = ncol(theBigMatrix)/10 + 5,
+        height= nrow(theBigMatrix)/10 + 5)
+    
+    plots[[i]][[k]] <- heatmap.2(theBigMatrix,
+                                 main = paste0(i, "_", substr(names(thisAnalysis)[k], 5, stop = 999)),
+                                 #hclustfun = colCluster,
+                                 distfun = rowCluster,
+                                 density.info = "histogram",
+                                 dendrogram = "none",
+                                 trace = "none",
+                                 #margins = c(3,20),
+                                 cexRow = 0.7,
+                                 cexCol = 0.5,
+                                 col = my_palette, #color by thisAnalysis[k]
+                                 #breaks = (-149:150-0.5)/50,
+                                 #dendrogram = "both",
+                                 #offsetRow = -205,
+                                 #lmat = rbind(c(1,2), c(3,4), c(5,6)),
+                                 #labRow = theseResults$leadingEdge,
+                                 lhei = c(2, nrow(theBigMatrix)/20 + 3),
+                                 lwid = c(2, ncol(theBigMatrix)/10 + 3),
+                                 ##lhei=c(2,4,0.2),
+                                 Colv = "Rowv"
+                                 
+                                 
+    )
+    
+    
+    dev.off()
   }
+  
 }
 
-grid.raster(col)
 
-# heatmap it, it should already be clustered
-      
-      plots[[i]][[k]] <- list()
-      
-      pdf(paste0(i, "_", substr(names(thisAnalysis)[k],
-                                5, stop = 999), ".pdf"),
-          width = ncol(theBigMatrix)/10 + 5,
-          height= nrow(theBigMatrix)/10 + 5)
-      
-      plots[[i]][[k]] <- heatmap.2(theBigMatrix,
-                                   main = paste0(i, "_", substr(names(thisAnalysis)[k], 5, stop = 999)),
-                                   #hclustfun = colCluster,
-                                   distfun = rowCluster,
-                                   density.info = "histogram",
-                                   dendrogram = "none",
-                                   trace = "none",
-                                   #margins = c(3,20),
-                                   cexRow = 0.7,
-                                   cexCol = 0.5,
-                                   col = my_palette, #color by thisAnalysis[k]
-                                   #breaks = (-149:150-0.5)/50,
-                                   #dendrogram = "both",
-                                   #offsetRow = -205,
-                                   #lmat = rbind(c(1,2), c(3,4), c(5,6)),
-                                   #labRow = theseResults$leadingEdge,
-                                   lhei = c(2, nrow(theBigMatrix)/20 + 3),
-                                   lwid = c(2, ncol(theBigMatrix)/10 + 3),
-                                   ##lhei=c(2,4,0.2),
-                                   Colv = "Rowv"
-                                   
-                                   
-      )
-      
-      
-      dev.off()
-  }
-
-  }
-
-
+#trying stuff, initiating separate matrixes for each color channel
+    rmatrix <- matrix(data = "#FFFFFF",
+                        ncol = length(colnames(theBigMatrixOrdered)),
+                        nrow = length(rownames(theBigMatrixOrdered)))
+    gmatrix <- matrix(data = "#FFFFFF",
+                      ncol = length(colnames(theBigMatrixOrdered)),
+                      nrow = length(rownames(theBigMatrixOrdered)))
+    bmatrix <- matrix(data = "#FFFFFF",
+                      ncol = length(colnames(theBigMatrixOrdered)),
+                      nrow = length(rownames(theBigMatrixOrdered)))
+    
+    colnames(rmatrix) = colnames(theBigMatrixOrdered)
+    rownames(rmatrix) = rownames(theBigMatrixOrdered)
+    colnames(bmatrix) = colnames(theBigMatrixOrdered)
+    rownames(bmatrix) = rownames(theBigMatrixOrdered)
+    colnames(gmatrix) = colnames(theBigMatrixOrdered)
+    rownames(gmatrix) = rownames(theBigMatrixOrdered)
+    
+    for(setID in 1:ncol(theBigMatrixOrdered)){
+      for(geneID in 1:nrow(theBigMatrixOrdered)){
+        tbmo <- theBigMatrixOrdered[geneID,setID]
+        print(tbmo)
+        
+        if (tbmo == 0){
+          rgbmatrix[geneID,setID] <- "#000000" 
+        }
+        else {e <- colnames(theBigMatrixOrdered)[geneID]
+        rmatrix[geneID,setID] <- res_nmf$V1$orig_matrix[e,"log2FoldChange"] #build three matrices for each r g b
+        gmatrix[geneID,setID] <- res_nmf$V2$orig_matrix[e,"log2FoldChange"]
+        bmatrix[geneID,setID] <- res_nmf$V3$orig_matrix[e,"log2FoldChange"]
+        rgbmatrix <- rgb(rmatrix, gmatrix, bmatrix)
+        dim(rgbmatrix) <- dim(rmatrix)
+        
+        }
+      }
+    }
+    grid.raster(rmatrix)
