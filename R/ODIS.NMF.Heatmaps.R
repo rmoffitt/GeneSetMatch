@@ -119,25 +119,29 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
     colnames(rbgmatrix) = colnames(theBigMatrixOrdered)
     rownames(rbgmatrix) = rownames(theBigMatrixOrdered)
     
-    for(setID in 1:ncol(theBigMatrixOrdered)){
-      for(geneID in 1:nrow(theBigMatrixOrdered)){
-        tbmo <- theBigMatrixOrdered[geneID,setID]
+    for(setID in 1:nrow(theBigMatrixOrdered)){
+      for(geneID in 1:ncol(theBigMatrixOrdered)){
+        tbmo <- theBigMatrixOrdered[setID, geneID]
         print(tbmo)
         
         if (tbmo == 0){
-          rbgmatrix[geneID,setID] <- "#000000" 
+        
+          rbgmatrix[setID, geneID] <- "#000000" 
         }
         else {e <- colnames(theBigMatrixOrdered)[geneID]
         r <- res_nmf$V1$orig_matrix[e,"log2FoldChange"] 
         g <- res_nmf$V2$orig_matrix[e,"log2FoldChange"]
         b <- res_nmf$V3$orig_matrix[e,"log2FoldChange"]
-        rbgmatrix[geneID,setID] <- rgb(r, g, b)
+        rbgmatrix[setID, geneID] <- rgb(r, g, b)
         }
       }
     }
     library(grid)
     plot.new()
     grid.raster(rbgmatrix, interpolate = F)
+    axis(side = 1, at = 1:(dim(theBigMatrixOrdered)[2]), labels = colnames(theBigMatrixOrdered))
+    
+    
     
 
     
@@ -150,7 +154,7 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
         width = ncol(theBigMatrix)/10 + 5,
         height= nrow(theBigMatrix)/10 + 5)
     
-    plots[[i]][[k]] <- heatmap.2(theBigMatrix,
+    plots[[i]][[k]] <- image(grid.raster(rbgmatrix),
                                  main = paste0(i, "_", substr(names(thisAnalysis)[k], 5, stop = 999)),
                                  #hclustfun = colCluster,
                                  distfun = rowCluster,
@@ -179,42 +183,3 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
   }
   
 }
-
-
-#trying stuff, initiating separate matrixes for each color channel
-    rmatrix <- matrix(data = "#FFFFFF",
-                        ncol = length(colnames(theBigMatrixOrdered)),
-                        nrow = length(rownames(theBigMatrixOrdered)))
-    gmatrix <- matrix(data = "#FFFFFF",
-                      ncol = length(colnames(theBigMatrixOrdered)),
-                      nrow = length(rownames(theBigMatrixOrdered)))
-    bmatrix <- matrix(data = "#FFFFFF",
-                      ncol = length(colnames(theBigMatrixOrdered)),
-                      nrow = length(rownames(theBigMatrixOrdered)))
-    
-    colnames(rmatrix) = colnames(theBigMatrixOrdered)
-    rownames(rmatrix) = rownames(theBigMatrixOrdered)
-    colnames(bmatrix) = colnames(theBigMatrixOrdered)
-    rownames(bmatrix) = rownames(theBigMatrixOrdered)
-    colnames(gmatrix) = colnames(theBigMatrixOrdered)
-    rownames(gmatrix) = rownames(theBigMatrixOrdered)
-    
-    for(setID in 1:ncol(theBigMatrixOrdered)){
-      for(geneID in 1:nrow(theBigMatrixOrdered)){
-        tbmo <- theBigMatrixOrdered[geneID,setID]
-        print(tbmo)
-        
-        if (tbmo == 0){
-          rgbmatrix[geneID,setID] <- "#000000" 
-        }
-        else {e <- colnames(theBigMatrixOrdered)[geneID]
-        rmatrix[geneID,setID] <- res_nmf$V1$orig_matrix[e,"log2FoldChange"] #build three matrices for each r g b
-        gmatrix[geneID,setID] <- res_nmf$V2$orig_matrix[e,"log2FoldChange"]
-        bmatrix[geneID,setID] <- res_nmf$V3$orig_matrix[e,"log2FoldChange"]
-        rgbmatrix <- rgb(rmatrix, gmatrix, bmatrix)
-        dim(rgbmatrix) <- dim(rmatrix)
-        
-        }
-      }
-    }
-    grid.raster(rmatrix)
