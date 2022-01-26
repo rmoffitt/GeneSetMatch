@@ -71,21 +71,16 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
         #first iteration
         theBigMatrix <- theMatrix
       }else{
-        theBigMatrix <- merge(theBigMatrix, theMatrix, by = "row.names", all = TRUE)
-        rownames(theBigMatrix) <- theBigMatrix$Row.names
-        theBigMatrix <- theBigMatrix[, !(names(theBigMatrix) %in% "Row.names")]
-        theBigMatrix <- as.matrix(theMatrix)
-        
         #rMatrix1 <- rownames(theBigMatrix) #split thematrix into the unique and common part(by genes) (save U and C parts as separate matrices), 
         #rMatrix2 <- rownames(theMatrix)
         #u <- setdiff(rMatrix2,rMatrix1) #use setdif(rMatrix2, rMatrix1) for unique 
         #c <- intersect(rMatrix2,rMatrix1) #use intersect(rMatrix2, rMatrix1) for common
         #just merge the unique part
         #mergedmatrix[rC2,cC2] <- mergedmatrix[rC2, cC2] + c2
-        #theBigMatrix <- merge(theBigMatrix,theMatrix,by = "row.names",all=TRUE)
-        #rownames(theBigMatrix) <- theBigMatrix$Row.names #adding pathway names into row names
-        #theBigMatrix <- theBigMatrix[,!(names(theBigMatrix) %in% "Row.names")] #removing column with pathways names
-        #theBigMatrix <- as.matrix(theBigMatrix)
+        theBigMatrix <- merge(theBigMatrix,theMatrix,by = "row.names",all=TRUE)
+        rownames(theBigMatrix) <- theBigMatrix$Row.names #adding pathway names into row names
+        theBigMatrix <- theBigMatrix[,!(names(theBigMatrix) %in% "Row.names")] #removing column with pathways names
+        theBigMatrix <- as.matrix(theBigMatrix)
       }
       
       print(k)
@@ -109,8 +104,8 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
     }
     
     #re-order theBigMatrix ()
-    rowCluster <- hclust(distfun1(theBigMatrix))
-    colCluster <- hclust(distfun1(t(theBigMatrix)))
+    rowCluster <- hclust(distfun(theBigMatrix))
+    colCluster <- hclust(distfun(t(theBigMatrix)))
     
     image(t(theBigMatrix))  
     theBigMatrixOrdered <- theBigMatrix[rowCluster$order, colCluster$order] #ordered rows and columns by rowClust$order
@@ -133,17 +128,18 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
           rbgmatrix[geneID,setID] <- "#000000" 
         }
         else {e <- colnames(theBigMatrixOrdered)[geneID]
-        r <- res_nmf$V1$orig_matrix[e,"log2FoldChange"] #build three matrices for each r g b
+        r <- res_nmf$V1$orig_matrix[e,"log2FoldChange"] 
         g <- res_nmf$V2$orig_matrix[e,"log2FoldChange"]
         b <- res_nmf$V3$orig_matrix[e,"log2FoldChange"]
-        col <- rgb(r, g, b)
-        dim(col) <- dim(r)
-        
+        rbgmatrix[geneID,setID] <- rgb(r, g, b)
         }
       }
     }
+    library(grid)
+    plot.new()
+    grid.raster(rbgmatrix, interpolate = F)
     
-    grid.raster(col)
+
     
     # heatmap it, it should already be clustered
     
