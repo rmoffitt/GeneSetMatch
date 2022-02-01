@@ -17,9 +17,6 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
     d <- (1-cor(t(x))) + as.matrix(pdist(sign(rowMeans(x))))
     return(as.dist(d))}
   
-  #define color palette - different color for each K and range of pigment for log2foldchange -UNECCESARY?
-  #my_palette <- colorRampPalette(c("blue", "lightgrey", "pink"))(n = 299)
-  
   #initiate list of plots
   plots <- list()
   
@@ -137,14 +134,29 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
       }
     }
     library(grid)
-    plot.new()
-    grid.raster(rbgmatrix, interpolate = F)
-    axis(side = 1, at = 1:(dim(theBigMatrixOrdered)[2]), labels = colnames(theBigMatrixOrdered))
+    library(ggplot2)
+    library(sp)
+    library(raster)
     
+    #make tall table of x, y, color for ggplot, use plotly 
+    tallmatrix <- as.character(rbgmatrix)
+    tallmatrix <- data.frame(data = tallmatrix,
+                             x = rep(1:dim(rbgmatrix)[2], each = dim(rbgmatrix)[1]),
+                             y = rep(1:dim(rbgmatrix)[1], times = dim(rbgmatrix)[2]),
+                             stringsAsFactors = F)
+  xlabels <- c(colnames(rbgmatrix))
+  
+  ylabels <- rownames(rbgmatrix)
     
+    ggplot(tallmatrix) +
+      geom_raster(aes(x = x, y= y, fill = data)) +
+      scale_fill_identity() +
+      scale_y_discrete(ylabels) +
+      scale_x_discrete(xlabels) +
+      ggtitle("V123")
     
-
-    
+    # grid.raster(rbgmatrix, interpolate = F)
+    # axis(side = 1, at = 1:(dim(theBigMatrixOrdered)[2]), labels = colnames(theBigMatrixOrdered))
     # heatmap it, it should already be clustered
     
     plots[[i]][[k]] <- list()
