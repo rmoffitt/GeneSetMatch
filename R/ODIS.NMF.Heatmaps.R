@@ -137,6 +137,7 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
     library(ggplot2)
     library(sp)
     library(raster)
+    library(plotly)
     
     #make tall table of x, y, color for ggplot, use plotly 
     tallmatrix <- as.character(rbgmatrix)
@@ -144,9 +145,9 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
                              x = rep(1:dim(rbgmatrix)[2], each = dim(rbgmatrix)[1]),
                              y = rep(1:dim(rbgmatrix)[1], times = dim(rbgmatrix)[2]),
                              stringsAsFactors = F)
-  xlabels <- c(colnames(rbgmatrix))
-  
-  ylabels <- rownames(rbgmatrix)
+    
+    xlabels <- c(colnames(rbgmatrix))
+    ylabels <- c(rownames(rbgmatrix))
     
     ggplot(tallmatrix) +
       geom_raster(aes(x = x, y= y, fill = data)) +
@@ -172,7 +173,8 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
                                  distfun = rowCluster,
                                  density.info = "histogram",
                                  dendrogram = "none",
-                                 trace = "none",
+                         
+                                     trace = "none",
                                  #margins = c(3,20),
                                  cexRow = 0.7,
                                  cexCol = 0.5,
@@ -186,11 +188,9 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
                                  lwid = c(2, ncol(theBigMatrix)/10 + 3),
                                  ##lhei=c(2,4,0.2),
                                  Colv = "Rowv"
-                                 
+                            
                                  
     )
-    
-    
     dev.off()
   }
   
