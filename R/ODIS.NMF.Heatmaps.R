@@ -1,4 +1,5 @@
 #Working with only one i because some have NA's
+
 res_nmf <- readRDS("./Snyder_NMF_V123.rds")
 gsea_results <- res_nmf
 i <- names(gsea_results[[1]][2])
@@ -149,11 +150,14 @@ ODIS.NMF.Heatmaps <- function(gsea_results){
     xlabels <- c(colnames(rbgmatrix))
     ylabels <- c(rownames(rbgmatrix))
     
+    #
+    
     ggplot(tallmatrix) +
       geom_raster(aes(x = x, y= y, fill = data)) +
       scale_fill_identity() +
-      scale_y_discrete(ylabels) +
-      scale_x_discrete(xlabels) +
+      scale_y_continuous(labels = ylabels, breaks = 1:length(ylabels)) +
+      scale_x_continuous(labels = xlabels, breaks = 1:length(xlabels)) +
+      theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1)) +
       ggtitle("V123")
     
     # grid.raster(rbgmatrix, interpolate = F)
