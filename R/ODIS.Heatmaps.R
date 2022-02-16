@@ -9,7 +9,6 @@
 #' ODIS.Heatmaps(snyder_outputs)
 
 
-
 ODIS.Heatmaps <- function(gsea_results){
   
   my_palette <- colorRampPalette(c("blue", "lightgrey", "red"))(n = 299)

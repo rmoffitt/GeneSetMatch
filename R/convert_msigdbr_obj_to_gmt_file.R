@@ -1,4 +1,4 @@
-#' Write a gmt file.
+#' This Function writes a gmt file.
 #' @export
 #' @import dplyr
 #' @import data.table
