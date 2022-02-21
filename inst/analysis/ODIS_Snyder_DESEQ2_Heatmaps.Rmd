@@ -1,0 +1,24 @@
+---
+title: "ODIS_Snyder_DESEQ2_Heatmaps"
+author: "Lucie Chrastecka"
+date: "2/18/2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+PACKAGE LIBRARY
+```{r}
+library(gplots)
+library(pdist)
+```
+
+GENE VS GENE SET HEATMAPS
+```{r}
+res_snyd <- readRDS("./gsea_snyder_outputs.rds")
+ODIS.Heatmaps(res_snyd)
+```
