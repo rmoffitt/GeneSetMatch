@@ -15,16 +15,16 @@
 #' ODIS.Multilevel.Heatmaps(gsea_results)
 
 
-
-
 #TO FIX
-#####Working with only one i because some have NA's (line 51)
-#####CHose distance function
+#####figure out "go next"
 #####Run through all plots, save all
+##fftw library needs updating
 
 res_nmf <- readRDS("./Snyder_NMF_V123.rds")
+res_nmf_org <- readRDS("./Snyder_NMF_ORG_V123.rds")
 gsea_results <- res_nmf
 i <- names(gsea_results[[1]][2])
+
 
 ###
 ODIS.Multilevel.Heatmaps <- function(gsea_results){
@@ -36,12 +36,13 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
   
   #original distance fucntion
   #library(pdist)
-  #distfun1 =  function(x) {
-    #d <- (1-cor(t(x))) + as.matrix(pdist(sign(rowMeans(x))))
-    #return(as.dist(d))}
+  # distfun1 =  function(x) {
+  #   d <- (1-cor(t(x))) + as.matrix(pdist(sign(rowMeans(x))))
+  #   return(as.dist(d))}
   
   #initiate list of plots
   plots <- list()
+  filelist <- list()
   
   #this loop glues the small matrixes together
   for(i in names(gsea_results[[1]])){ #for each experiment V, pull object Vx 
@@ -52,8 +53,10 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     for(k in names(gsea_results)){
       orig_matrix = gsea_results[[k]]$orig_matrix #pull out and separate for appropriate k every time
       theseResults <- gsea_results[[k]][[i]]$Results
-      if (is.na(theseResults)) next
-      theseResults <- theseResults[1:min(30, length(theseResults)),] #Selects up to top 30 enriched pathways and their stats by normalized enrichment score
+      # if (length(theseResults == 0)){
+      #   next
+      # }
+      theseResults <- theseResults[1:min(30, nrow(theseResults)),] #Selects up to top 30 enriched pathways and their stats by normalized enrichment score
       theEdge = unique(unlist(theseResults$leadingEdge)) #Takes all the leading edge genes from theseResults
       theTopGenes = theEdge[order(match(theEdge, orig_matrix$ENTREZID))][1:min(30, length(theEdge))] #Returns the row index of theEdge vs orig_matrix, which is sorted by log2FoldChange (decreasing)
       print(length(theTopGenes)) #checks lenght, should be 30
@@ -91,12 +94,6 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         #first iteration
         theBigMatrix <- theMatrix
       }else{
-        #rMatrix1 <- rownames(theBigMatrix) #split thematrix into the unique and common part(by genes) (save U and C parts as separate matrices), 
-        #rMatrix2 <- rownames(theMatrix)
-        #u <- setdiff(rMatrix2,rMatrix1) #use setdif(rMatrix2, rMatrix1) for unique 
-        #c <- intersect(rMatrix2,rMatrix1) #use intersect(rMatrix2, rMatrix1) for common
-        #just merge the unique part
-        #mergedmatrix[rC2,cC2] <- mergedmatrix[rC2, cC2] + c2
         theBigMatrix <- merge(theBigMatrix,theMatrix,by = "row.names",all=TRUE)
         rownames(theBigMatrix) <- theBigMatrix$Row.names #adding pathway names into row names
         theBigMatrix <- theBigMatrix[,!(names(theBigMatrix) %in% "Row.names")] #removing column with pathways names
@@ -145,7 +142,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         print(tbmo)
         
         if (tbmo == 0){
-        
+          
           rbgmatrix[setID, geneID] <- "#000000" 
         }
         else {e <- colnames(theBigMatrixOrdered)[geneID]
@@ -156,7 +153,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         }
       }
     }
-   
+    
     
     #make tall table of x, y, color for ggplot, use plotly 
     tallmatrix <- as.character(rbgmatrix)
@@ -168,52 +165,27 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     xlabels <- c(colnames(rbgmatrix))
     ylabels <- c(rownames(rbgmatrix))
     
-    #
+    print(paste0(i, "_", substr(names(thisAnalysis)[k],
+                                5, stop = 999), ".pdf"))
+    filelist[[i]][[k]] <- paste0(i, "_", substr(names(thisAnalysis)[k],
+                                                5, stop = 999), ".pdf")
     
-    ggplot(tallmatrix) +
+    pdf(paste0(i, "_", substr(names(thisAnalysis)[k],
+                              5, stop = 999), ".pdf"),
+        width = ncol(rbgmatrix)/10 + 5,
+        height= nrow(rbgmatrix)/10 + 5)
+    
+    
+    plots[[i]][[k]] <- ggplot(tallmatrix) +
       geom_raster(aes(x = x, y= y, fill = data)) +
       scale_fill_identity() +
       scale_y_continuous(labels = ylabels, breaks = 1:length(ylabels)) +
       scale_x_continuous(labels = xlabels, breaks = 1:length(xlabels)) +
       theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1)) +
-      ggtitle("V123")
+      ggtitle(paste0(i, "_", substr(names(thisAnalysis)[k], 1, stop = 999)))
     
-    # grid.raster(rbgmatrix, interpolate = F)
-    # axis(side = 1, at = 1:(dim(theBigMatrixOrdered)[2]), labels = colnames(theBigMatrixOrdered))
-    # heatmap it, it should already be clustered
     
-    plots[[i]][[k]] <- list()
-    
-    pdf(paste0(i, "_", substr(names(thisAnalysis)[k],
-                              5, stop = 999), ".pdf"),
-        width = ncol(theBigMatrix)/10 + 5,
-        height= nrow(theBigMatrix)/10 + 5)
-    
-    plots[[i]][[k]] <- image(grid.raster(rbgmatrix),
-                                 main = paste0(i, "_", substr(names(thisAnalysis)[k], 5, stop = 999)),
-                                 #hclustfun = colCluster,
-                                 distfun = rowCluster,
-                                 density.info = "histogram",
-                                 dendrogram = "none",
-                         
-                                     trace = "none",
-                                 #margins = c(3,20),
-                                 cexRow = 0.7,
-                                 cexCol = 0.5,
-                                 col = my_palette, #color by thisAnalysis[k]
-                                 #breaks = (-149:150-0.5)/50,
-                                 #dendrogram = "both",
-                                 #offsetRow = -205,
-                                 #lmat = rbind(c(1,2), c(3,4), c(5,6)),
-                                 #labRow = theseResults$leadingEdge,
-                                 lhei = c(2, nrow(theBigMatrix)/20 + 3),
-                                 lwid = c(2, ncol(theBigMatrix)/10 + 3),
-                                 ##lhei=c(2,4,0.2),
-                                 Colv = "Rowv"
-                            
-                                 
-    )
     dev.off()
   }
-  
+  return(filelist)
 }
