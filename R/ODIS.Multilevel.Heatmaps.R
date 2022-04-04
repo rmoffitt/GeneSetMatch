@@ -22,8 +22,10 @@
 
 res_nmf <- readRDS("./Snyder_NMF_V123.rds")
 res_nmf_org <- readRDS("./Snyder_NMF_ORG_V123.rds")
+llb <- TabulaMuris_LLB
+i <- names(llb[[1]][[1]][[1]][9])
 gsea_results <- res_nmf
-i <- names(gsea_results[[1]][2])
+i <- names(gsea_results[[3]][5])
 
 
 ###
@@ -45,7 +47,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
   #   return(as.dist(d))}
   
   #this loop glues the small matrixes together
-  for(i in names(gsea_results[[1]])){ #for each experiment V, pull object Vx 
+  for(i in names(gsea_results[[1]]), "except orig matrix"){ #for each experiment V, pull object Vx 
     thisAnalysis <- gsea_results[[i]]
     theBigMatrix <- list() #every time I make a small matrix for each experiment (k), glue them together here
     plots[[i]] <- list()
@@ -93,7 +95,8 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         theMatrix[j, !(colnames(theMatrix) %in% tle)] <- 0
       }
       #image(t(theMatrix))
-      
+      print('theMatrix after j loop')
+      print(str(theMatrix))
       
       #rowSD changed to eowMeans etc
       #take standard deviation of the rows and columns
@@ -103,7 +106,10 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
       #print(theMatrix_row_std)
       #print(theMatrix_col_std)
       #remove all rows and cols that have less stdev that 0.01 to avid empty space in plot
-      theMatrix <- theMatrix[!(theMatrix_row_std == 0), !(theMatrix_col_std == 0)]
+      theMatrix <- theMatrix[!(theMatrix_row_std == 0), !(theMatrix_col_std == 0), drop = FALSE] #drop = FALSE makes sure to return a matrix even if not convenient for r
+      
+      print("str of Matrix before merge")
+      print(str(theMatrix))
       
       #somewhox .x and .y is added to genenames in this merge, because genes show up in more than one V, once this is fixed 129 should work
       if(typeof(theBigMatrix)=="list"){
@@ -138,6 +144,10 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     
     print('theBigMatrix is clean')
     image(theBigMatrix)    
+    
+    
+    #temporary fix
+    theBigMatrix <- theBigMatrix[, colnames(theBigMatrix) != "x"]
     #re-order theBigMatrix ()
     rowCluster <- hclust(distfun(theBigMatrix))
     colCluster <- hclust(distfun(t(theBigMatrix)))
@@ -200,4 +210,8 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
   
   return(filelist)
 }
+
+
+
+
 
