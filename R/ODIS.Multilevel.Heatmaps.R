@@ -22,10 +22,10 @@
 
 res_nmf <- readRDS("./Snyder_NMF_V123.rds")
 res_nmf_org <- readRDS("./Snyder_NMF_ORG_V123.rds")
-llb <- TabulaMuris_LLB
-i <- names(llb[[1]][[1]][[1]][9])
+# llb <- TabulaMuris_LLB
+# i <- names(llb[[1]][[1]][[1]][9])
 gsea_results <- res_nmf
-i <- names(gsea_results[[3]][5])
+i <- names(gsea_results[[3]][9])
 
 
 ###
@@ -120,6 +120,13 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
           #image(t(theBigMatrix))
           redundantX <- grep(pattern = ".x", colnames(theBigMatrix), value = T)
           redundantX <- gsub(pattern = "\\.x", replacement = "", x = redundantX)
+          for (z in redundantX){
+            indX <- grep(colnames(theBigMatrix), pattern = z) #find the col indices of .x and .y
+            theBigMatrix[which(theBigMatrix[,indX[2]] == 1), #"if there is a 1 value in the ".y", make it a 1 in the ".x"
+                         indX[1]] = 1
+            theBigMatrix = theBigMatrix[, -indX[2]] #remove the .y column
+            colnames(theBigMatrix)[indX[1]] = z #remove the .x by replacing it with original z
+          }
         }
         
         print('theBigMatrix at end of loop:')
@@ -131,28 +138,24 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     print('the matrix of genes and genesets has been constructed:')
     print(str(theBigMatrix))
     
-    for (z in redundantX){
-      indX <- grep(colnames(theBigMatrix), pattern = z) #find the col indices of .x and .y
-      theBigMatrix[which(theBigMatrix[,indX[2]] == 1), #"if there is a 1 value in the ".y", make it a 1 in the ".x"
-                   indX[1]] = 1
-      theBigMatrix = theBigMatrix[, -indX[2]] #remove the .y column
-      colnames(theBigMatrix)[indX[1]] = z #remove the .x by replacing it with original z
-    }
+   
     
     print('theBigMatrix is clean')
     image(theBigMatrix)    
     
-    
-    #temporary fix
-    theBigMatrix <- theBigMatrix[, colnames(theBigMatrix) != "x"]
     #re-order theBigMatrix ()
-    rowCluster <- hclust(distfun(theBigMatrix))
-    colCluster <- hclust(distfun(t(theBigMatrix)))
-    
-    
-    theBigMatrixOrdered <- theBigMatrix[rowCluster$order, colCluster$order] #ordered rows and columns by rowClust$order
-    image(t(theBigMatrixOrdered))
-    
+    #if there is less than 2 rows in TheBigMatrix, clustering is skipped
+    if (nrow(theBigMatrix) > 2) {
+      
+      rowCluster <- hclust(distfun(theBigMatrix))
+      colCluster <- hclust(distfun(t(theBigMatrix)))
+      
+      
+      theBigMatrixOrdered <- theBigMatrix[rowCluster$order, colCluster$order] #ordered rows and columns by rowClust$order
+      image(t(theBigMatrixOrdered))
+    } else {
+      theBigMatrixOrdered <- theBigMatrix
+    }
     #This forloop determines RGB triplet for each gene, builds corresponding matrices and plots a raster
     rbgmatrix <- matrix(data = "#FFFFFF",
                         ncol = length(colnames(theBigMatrixOrdered)),
@@ -198,7 +201,8 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
       scale_fill_identity() +
       scale_y_continuous(labels = ylabels, breaks = 1:length(ylabels)) +
       scale_x_continuous(labels = xlabels, breaks = 1:length(xlabels)) +
-      theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1)) +
+      theme(axis.text.x = element_text(size = 25, angle = 45, vjust = 0.5, hjust=1),
+            axis.text.y = element_text(size = 25)) +
       ggtitle(paste0(i))
     
     print(plots[[i]])
