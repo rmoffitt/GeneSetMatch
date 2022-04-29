@@ -22,9 +22,10 @@
 
 res_nmf <- readRDS("./Snyder_NMF_V123.rds")
 res_nmf_org <- readRDS("./Snyder_NMF_ORG_V123.rds")
+res_nmf_cell <- readRDS("./Snyder_NMF_cell_V123.rds")
 # llb <- TabulaMuris_LLB
 # i <- names(llb[[1]][[1]][[1]][9])
-gsea_results <- res_nmf
+gsea_results <- res_nmf_cell
 i <- names(gsea_results[[3]][9])
 
 
@@ -175,10 +176,12 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         g <- res_nmf$V2$orig_matrix[e,"log2FoldChange"]
         b <- res_nmf$V3$orig_matrix[e,"log2FoldChange"]
         rbgmatrix[setID, geneID] <- rgb(r, g, b)
+        
         }
       }
     }
-    
+    print('head of rbgmatrix')
+    print(head(rbgmatrix))
     #make tall table of x, y, color for ggplot, use plotly 
     tallmatrix <- as.character(rbgmatrix)
     tallmatrix <- data.frame(data = tallmatrix,
