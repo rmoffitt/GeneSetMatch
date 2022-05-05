@@ -8,6 +8,7 @@
 #' @import raster
 #' @import plotly
 #' @import matrixStats
+#' @import DescTools
 #' @param gsea_results is the direct output from GSEA function in step immediately prior. There is no need for restructuring, just feed it directly into the function as is. 
 #' @return multi-colored heatmaps displaying 3 experimental conditions/samples/vectors
 #' @examples 
@@ -22,11 +23,10 @@
 
 res_nmf <- readRDS("./Snyder_NMF_V123.rds")
 res_nmf_org <- readRDS("./Snyder_NMF_ORG_V123.rds")
-res_nmf_cell <- readRDS("./Snyder_NMF_cell_V123.rds")
-# llb <- TabulaMuris_LLB
-# i <- names(llb[[1]][[1]][[1]][9])
-gsea_results <- res_nmf_cell
-i <- names(gsea_results[[3]][9])
+res_nmf_cell <- readRDS("./Snyder_NMF_CELL_V123.rds")
+
+gsea_results <- res_nmf
+#i <- names(gsea_results[[3]][9])
 
 
 ###
@@ -139,55 +139,111 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     print('the matrix of genes and genesets has been constructed:')
     print(str(theBigMatrix))
     
-   
-    
     print('theBigMatrix is clean')
     image(theBigMatrix)    
     
     #re-order theBigMatrix ()
     #if there is less than 2 rows in TheBigMatrix, clustering is skipped
+    
     if (nrow(theBigMatrix) > 2) {
-      
+
       rowCluster <- hclust(distfun(theBigMatrix))
       colCluster <- hclust(distfun(t(theBigMatrix)))
-      
-      
+
+
       theBigMatrixOrdered <- theBigMatrix[rowCluster$order, colCluster$order] #ordered rows and columns by rowClust$order
       image(t(theBigMatrixOrdered))
     } else {
       theBigMatrixOrdered <- theBigMatrix
     }
+    
     #This forloop determines RGB triplet for each gene, builds corresponding matrices and plots a raster
     rbgmatrix <- matrix(data = "#FFFFFF",
-                        ncol = length(colnames(theBigMatrixOrdered)),
-                        nrow = length(rownames(theBigMatrixOrdered)))
+                        ncol = length(colnames(theBigMatrixOrdered)), #theBigMatrixOrdered
+                        nrow = length(rownames(theBigMatrixOrdered))) #theBigMatrixOrdered
     
-    colnames(rbgmatrix) = colnames(theBigMatrixOrdered)
-    rownames(rbgmatrix) = rownames(theBigMatrixOrdered)
+    colnames(rbgmatrix) = colnames(theBigMatrixOrdered) #theBigMatrixOrdered
+    rownames(rbgmatrix) = rownames(theBigMatrixOrdered) #theBigMatrixOrdered
     
-    for(setID in 1:nrow(theBigMatrixOrdered)){
-      for(geneID in 1:ncol(theBigMatrixOrdered)){
-        tbmo <- theBigMatrixOrdered[setID, geneID]
+    print("rbg matrix initialized")
+    
+    for(setID in 1:nrow(theBigMatrixOrdered)){ #theBigMatrixOrdered
+      for(geneID in 1:ncol(theBigMatrixOrdered)){ #theBigMatrixOrdered
+        tbmo <- theBigMatrixOrdered[setID, geneID] #theBigMatrixOrdered
         if (tbmo == 0){
-          rbgmatrix[setID, geneID] <- "#000000" 
+          rbgmatrix[setID, geneID] <- "#000000"
         }
-        else {e <- colnames(theBigMatrixOrdered)[geneID]
-        r <- res_nmf$V1$orig_matrix[e,"log2FoldChange"] 
-        g <- res_nmf$V2$orig_matrix[e,"log2FoldChange"]
-        b <- res_nmf$V3$orig_matrix[e,"log2FoldChange"]
+        else {e <- colnames(theBigMatrixOrdered)[geneID] #theBigMatrixOrdered
+        r <- gsea_results$V1$orig_matrix[e,"log2FoldChange"] 
+        g <- gsea_results$V2$orig_matrix[e,"log2FoldChange"]
+        b <- gsea_results$V3$orig_matrix[e,"log2FoldChange"]
         rbgmatrix[setID, geneID] <- rgb(r, g, b)
-        
         }
       }
     }
     print('head of rbgmatrix')
     print(head(rbgmatrix))
+    
+    ###make shadow hsv matrix that looks like rgbmatrix but instead of #000000 it has hsv.h value, so that we can cluster by color
+    hsvmatrix <- matrix(data = 0,
+                        ncol = length(colnames(theBigMatrixOrdered)), #theBigMatrixOrdered
+                        nrow = length(rownames(theBigMatrixOrdered))) #theBigMatrixOrdered
+    
+    colnames(hsvmatrix) = colnames(theBigMatrixOrdered) #theBigMatrixOrdered
+    rownames(hsvmatrix) = rownames(theBigMatrixOrdered) #theBigMatrixOrdered
+    
+    print("HSV matrix initialized")
+    
+    for(setID in 1:nrow(theBigMatrixOrdered)){ #theBigMatrixOrdered
+      for(geneID in 1:ncol(theBigMatrixOrdered)){ #theBigMatrixOrdered
+        tbmo <- theBigMatrixOrdered[setID, geneID] #theBigMatrixOrdered
+        if (tbmo == 0){
+          hsvmatrix[setID, geneID] <- 10
+        }
+        else {e <- colnames(theBigMatrixOrdered)[geneID] #theBigMatrixOrdered  test ends here
+        r <- gsea_results$V1$orig_matrix[e,"log2FoldChange"] 
+        g <- gsea_results$V2$orig_matrix[e,"log2FoldChange"]
+        b <- gsea_results$V3$orig_matrix[e,"log2FoldChange"]
+        hsvmatrix[setID, geneID] <- rgb(r, g, b)
+        hsv <- t(ColToHsv(hsvmatrix[setID, geneID]))
+        hsvmatrix[setID, geneID] <- hsv[,1]
+        }
+      }
+    }
+    class(hsvmatrix) <- "numeric"
+    print('str of hsvmatrix')
+    print(str(hsvmatrix))
+    
+    print('clustering hsv matrix now')
+    ### clustering hsv matrix
+    if (nrow(hsvmatrix) > 2) {
+      
+      rowcluster <- hclust(distfun(hsvmatrix))
+      colcluster <- hclust(distfun(t(hsvmatrix)))
+      
+      
+      hsvmatrixOrdered <- hsvmatrix[rowcluster$order, colcluster$order] #ordered rows and columns by rowClust$order
+      image(t(hsvmatrixOrdered))
+    } else {
+      hsvmatrixOrdered <- hsvmatrix
+    }
+    print('hsvmatrixordered')
+    print(str(hsvmatrixOrdered))
+    
+    #order rbgmatrix rows by hsvmatrixordered rows
+    rbgmatrix <- rbgmatrix[rownames(hsvmatrixOrdered),,drop=FALSE]
+    
+    #order rbgmatrix columns by hsvmatrixordered columns
+    rbgmatrix <- rbgmatrix[, colnames(hsvmatrixOrdered)]
+    
+    
     #make tall table of x, y, color for ggplot, use plotly 
     tallmatrix <- as.character(rbgmatrix)
     tallmatrix <- data.frame(data = tallmatrix,
                              x = rep(1:dim(rbgmatrix)[2], each = dim(rbgmatrix)[1]),
                              y = rep(1:dim(rbgmatrix)[1], times = dim(rbgmatrix)[2]),
                              stringsAsFactors = F)
+    
     
     xlabels <- c(colnames(rbgmatrix))
     ylabels <- c(rownames(rbgmatrix))
