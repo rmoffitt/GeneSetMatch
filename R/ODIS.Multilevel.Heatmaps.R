@@ -192,13 +192,14 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     colnames(hsvmatrix) = colnames(theBigMatrixOrdered) #theBigMatrixOrdered
     rownames(hsvmatrix) = rownames(theBigMatrixOrdered) #theBigMatrixOrdered
     
+    library(DescTools)
     print("HSV matrix initialized")
     
     for(setID in 1:nrow(theBigMatrixOrdered)){ #theBigMatrixOrdered
       for(geneID in 1:ncol(theBigMatrixOrdered)){ #theBigMatrixOrdered
         tbmo <- theBigMatrixOrdered[setID, geneID] #theBigMatrixOrdered
         if (tbmo == 0){
-          hsvmatrix[setID, geneID] <- 10
+          hsvmatrix[setID, geneID] <- NA
         }
         else {e <- colnames(theBigMatrixOrdered)[geneID] #theBigMatrixOrdered  test ends here
         r <- gsea_results$V1$orig_matrix[e,"log2FoldChange"] 
@@ -215,11 +216,38 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     print(str(hsvmatrix))
     
     print('clustering hsv matrix now')
-    ### clustering hsv matrix
+    
+    ### clustering hsv matrix based on both color and pathway membership
     if (nrow(hsvmatrix) > 2) {
       
-      rowcluster <- hclust(distfun(hsvmatrix))
-      colcluster <- hclust(distfun(t(hsvmatrix)))
+      HSV.ROW.distfun <- function(x) {
+        # figure the color for that row
+        averageHue <- rowMeans(x,na.rm=TRUE)
+        print(averageHue)
+        d <- as.matrix(dist(averageHue))
+        print(str(d))
+        #figure how many genes overlap row-to-row
+        overlap <- (1-is.na(x))%*%t(1-is.na(x))
+        o.diag <- diag(overlap)
+        o.square <- sqrt(o.diag%*%t(o.diag))
+        overlap <- 1-(overlap/o.square)
+        #combine these two metrics
+        print(d[1:5,1:5])
+        print(overlap[1:5,1:5])
+        #add distance overlap and color overlap (instead of multiply?????)
+        newdist <- d+overlap
+        return(as.dist(newdist))
+      }
+      
+      HSV.COL.distfun <- function(x) {
+        averageHue <- rowMeans(x,na.rm=TRUE)
+        print(averageHue)
+        d <- dist(averageHue)
+        return(as.dist(d))
+      }
+      
+      rowcluster <- hclust(HSV.ROW.distfun(hsvmatrix))
+      colcluster <- hclust(HSV.COL.distfun(t(hsvmatrix)))
       
       
       hsvmatrixOrdered <- hsvmatrix[rowcluster$order, colcluster$order] #ordered rows and columns by rowClust$order
@@ -254,6 +282,8 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     pdf(paste0(i, ".pdf"),
         width = ncol(rbgmatrix),
         height= nrow(rbgmatrix))
+    
+    library(ggplot2)
     
     plots[[i]] <- ggplot(tallmatrix) +
       geom_raster(aes(x = x, y= y, fill = data)) +
