@@ -25,7 +25,7 @@ res_nmf <- readRDS("./Snyder_NMF_V123.rds")
 res_nmf_org <- readRDS("./Snyder_NMF_ORG_V123.rds")
 res_nmf_cell <- readRDS("./Snyder_NMF_CELL_V123.rds")
 
-gsea_results <- res_nmf
+gsea_results <- res_nmf_cell
 #i <- names(gsea_results[[3]][9])
 
 
@@ -60,9 +60,9 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
           print("These results are EMPTY!!!")
           next
         }
-        theseResults <- theseResults[1:min(30, nrow(theseResults)),] #Selects up to top 30 enriched pathways and their stats by normalized enrichment score
+        theseResults <- theseResults[1:min(50, nrow(theseResults)),] #Selects up to top 30 enriched pathways and their stats by normalized enrichment score
         theEdge = unique(unlist(theseResults$leadingEdge)) #Takes all the leading edge genes from theseResults
-        theTopGenes = theEdge[order(match(theEdge, orig_matrix$ENTREZID))][1:min(30, length(theEdge))] #Returns the row index of theEdge vs orig_matrix, which is sorted by log2FoldChange (decreasing)
+        theTopGenes = theEdge[order(match(theEdge, orig_matrix$ENTREZID))][1:min(99, length(theEdge))] #Returns the row index of theEdge vs orig_matrix, which is sorted by log2FoldChange (decreasing)
         #print('theTopGenes:')
         #print(length(theTopGenes)) #checks length, should be 30
         agg_leading_edge = orig_matrix[orig_matrix$ENTREZID %in% theTopGenes,c("log2FoldChange","ENTREZID")] #Takes the genes corresponding to the index of theTopGenes
@@ -142,10 +142,13 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     print('theBigMatrix is clean')
     image(theBigMatrix)    
     
+    #if there is only one pathway in theBigMatrix, skip it
+    if (nrow(theBigMatrix) == 1) {
+      next
+    }
     #re-order theBigMatrix ()
     #if there is less than 2 rows in TheBigMatrix, clustering is skipped
-    
-    if (nrow(theBigMatrix) > 2) {
+        if (nrow(theBigMatrix) > 2) {
 
       rowCluster <- hclust(distfun(theBigMatrix))
       colCluster <- hclust(distfun(t(theBigMatrix)))
@@ -220,11 +223,14 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     ### clustering hsv matrix based on both color and pathway membership
     if (nrow(hsvmatrix) > 2) {
       
-      HSV.ROW.distfun <- function(x) {
+      HSV.ROW.distfun <- function(x,weight) {
         # figure the color for that row
         averageHue <- rowMeans(x,na.rm=TRUE)
-        print(averageHue)
-        d <- as.matrix(dist(averageHue))
+        h.x <- cos(averageHue*2*pi)
+        h.y <- sin(averageHue*2*pi)
+        h.coords <- cbind(h.x,h.y)
+        print(head(h.coords))
+        d <- as.matrix(dist(h.coords)) #figure out color in hue space and take difference between them (delta)
         print(str(d))
         #figure how many genes overlap row-to-row
         overlap <- (1-is.na(x))%*%t(1-is.na(x))
@@ -235,19 +241,12 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         print(d[1:5,1:5])
         print(overlap[1:5,1:5])
         #add distance overlap and color overlap (instead of multiply?????)
-        newdist <- d+overlap
+        newdist <- weight*d+overlap
         return(as.dist(newdist))
       }
-      
-      HSV.COL.distfun <- function(x) {
-        averageHue <- rowMeans(x,na.rm=TRUE)
-        print(averageHue)
-        d <- dist(averageHue)
-        return(as.dist(d))
-      }
-      
-      rowcluster <- hclust(HSV.ROW.distfun(hsvmatrix))
-      colcluster <- hclust(HSV.COL.distfun(t(hsvmatrix)))
+
+      rowcluster <- hclust(HSV.ROW.distfun(hsvmatrix,3))
+      colcluster <- hclust(HSV.ROW.distfun(t(hsvmatrix),1.5))
       
       
       hsvmatrixOrdered <- hsvmatrix[rowcluster$order, colcluster$order] #ordered rows and columns by rowClust$order
@@ -286,7 +285,9 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     library(ggplot2)
     
     plots[[i]] <- ggplot(tallmatrix) +
-      geom_raster(aes(x = x, y= y, fill = data)) +
+      geom_raster(aes(x = x,
+                      y= y,
+                      fill = data)) +
       scale_fill_identity() +
       scale_y_continuous(labels = ylabels, breaks = 1:length(ylabels)) +
       scale_x_continuous(labels = xlabels, breaks = 1:length(xlabels)) +
