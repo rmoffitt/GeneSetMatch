@@ -1,0 +1,17 @@
+---
+title: "ODIS_Snyder_NMF_Heatmaps.Rmd"
+author: "Lucie Chrastecka"
+date: "2/18/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Multi color heatmaps
+```{r}
+res_nmf <- readRDS("./Snyder_NMF_V123.rds")
+ODIS.NMF.Heatmaps(res_nmf)
+
+```

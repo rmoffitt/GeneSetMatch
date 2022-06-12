@@ -1,0 +1,68 @@
+---
+title: "DBLKO_VS_WT"
+author: "Lucie Chrastecka"
+date: "5/21/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, echo=FALSE}
+GSEA_OUTPUTS <- readRDS("./KRAS_GSEA.rds")
+```
+
+#DBL_vs_WT_C1
+```{r}
+print(GSEA_OUTPUTS$DBL_vs_WT$`./myC1.gmt`$Results[,1:7])
+
+```
+
+#DBL_vs_WT_C2
+```{r}
+print(GSEA_OUTPUTS$DBL_vs_WT$`./myC2.gmt`$Results[,1:7])
+
+```
+
+#DBL_vs_WT_C2 KEGG
+```{r}
+print(GSEA_OUTPUTS$DBL_vs_WT$`./myC2_KEGG.gmt`$Results[,1:7])
+
+```
+
+#DBL_vs_WT_C3
+```{r}
+print(GSEA_OUTPUTS$DBL_vs_WT$`./myC2_KEGG.gmt`$Results[,1:7])
+
+```
+
+#DBL_vs_WT_C4
+```{r}
+print(GSEA_OUTPUTS$DBL_vs_WT$`./myC4.gmt`$Results[,1:7])
+
+```
+
+#DBL_vs_WT_C5
+```{r}
+print(GSEA_OUTPUTS$DBL_vs_WT$`./myC5.gmt`$Results[,1:7])
+
+```
+
+#DBL_vs_WT_C6
+```{r}
+print(GSEA_OUTPUTS$DBL_vs_WT$`./myC6.gmt`$Results[,1:7])
+
+```
+
+#DBL_vs_WT_C7
+```{r}
+print(GSEA_OUTPUTS$DBL_vs_WT$`./myC7.gmt`$Results[,1:7])
+
+```
+
+#DBL_vs_WT_C8
+```{r}
+print(GSEA_OUTPUTS$DBL_vs_WT$`./myC8.gmt`$Results[,1:7])
+
+```

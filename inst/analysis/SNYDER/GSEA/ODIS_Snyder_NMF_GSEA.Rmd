@@ -1,0 +1,101 @@
+---
+title: "ODIS_Snyder_NMF_GSEA.Rmd"
+author: "Lucie Chrastecka"
+date: "2/18/2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Package Library
+```{r}
+library(BBmisc) #for normalize
+
+```
+
+ALL MY SETS + CONVERSION OF LIST OF SENTS INTO .GMT FILES
+```{r}
+C1_df = msigdbr(species = "Mus musculus", category = "C1", subcategory = "")
+C2_df = msigdbr(species = "Mus musculus", category = "C2", subcategory = "CGP")
+C2KEGG_df = msigdbr(species = "Mus musculus", category = "C2", subcategory = "CP:KEGG")
+C3_df = msigdbr(species = "Mus musculus", category = "C3", subcategory = "MIR:MIRDB")
+C4_df = msigdbr(species = "Mus musculus", category = "C4", subcategory = "CGN")
+C5_df = msigdbr(species = "Mus musculus", category = "C5", subcategory = "BP")
+C6_df = msigdbr(species = "Mus musculus", category = "C6", subcategory = "")
+C7_df = msigdbr(species = "Mus musculus", category = "C7", subcategory = "IMMUNESIGDB")
+C8_df = msigdbr(species = "Mus musculus", category = "H", subcategory = "")
+
+list_of_sets = list(C1 = C1_df,
+                    C2 = C2_df,
+                    C2_KEGG = C2KEGG_df,
+                    C3 = C3_df,
+                    C4 = C4_df,
+                    C5 = C5_df,
+                    C6 = C6_df,
+                    C7 = C7_df,
+                    C8 = C8_df)
+
+list_of_gmt_files <- convert_msigdbr_obj_to_gmt_file(list_of_sets)
+```
+
+Make GSEA friendly "gene_list" from NMF Vectors
+```{r}
+Snyder_NMF <- readRDS("./Snyder_NMF.rds")
+head(Snyder_NMF)
+Snyder_NMF_org <- readRDS("./Snyder_NMF_org.rds")
+head(Snyder_NMF_org)
+
+nmf_norm <- normalize(Snyder_NMF, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")
+head(nmf_norm)
+df1 <- nmf_norm[,1]
+head(df1)
+
+nmf_norm_org <- normalize(Snyder_NMF_org, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")
+head(nmf_norm_org)
+df2 <- nmf_norm_org[,1]
+head(df2)
+```
+
+Gsea on All three vectors of NMF
+```{r}
+
+snyder_nmfs_org <- list()
+
+for(Y in list(list("V1" = nmf_norm_org[,1, drop = F]),
+              list("V2" = nmf_norm_org[,2, drop = F]),
+              list("V3" = nmf_norm_org[,3, drop = F])) #drop = f MEANS KEEP IT AS A MATRIX WITH COLLUMNS AND 
+){
+  X <- Y[[1]]
+  
+  gene_list = X[,1]
+  gene_list = sort(gene_list, decreasing = TRUE)
+  gene_list = gene_list[!duplicated(names(gene_list))]
+  head(gene_list, n = 5)
+  
+
+  
+  for(i in list_of_gmt_files){
+    print(i)
+    res <- ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.05)
+    snyder_nmfs_org[[names(Y)]][[i]] <- res  ## find a way to reference "nmf_norm" and "nmf_norm_org"
+  }
+  #orig_matrix must be a data frame
+  snyder_nmfs_org[[names(Y)]]$orig_matrix <- as.data.frame(list(log2FoldChange = gene_list,
+                                                            ENTREZID = row.names(X),
+                                                            SYMBOL = row.names(X)))
+  
+}
+
+summary(snyder_nmfs_org)
+summary(snyder_nmfs_org$V2)
+summary(snyder_nmfs_org$V2$orig_matrix)
+head(snyder_nmfs_org$V2$`./myC1.gmt`$Results)
+str(snyder_nmfs_org$V2$orig_matrix$log2FoldChange)
+
+saveRDS(snyder_nmfs_org, "./Snyder_NMF_ORG_V123.rds")
+
+```
+

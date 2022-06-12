@@ -1,0 +1,49 @@
+---
+title: "ODIS_LLB_NMF"
+author: "Lucie Chrastecka"
+date: '2022-06-01'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+DATA - load in liver lung brain dataset
+```{r}
+LLB <- ODIS2::LLB
+head(LLB)
+str(LLB)
+LLB$ex <- as.matrix(LLB$ex)
+head(LLB$ex)
+str(LLB$ex)
+LLB_readcounts <- LLB$ex
+```
+
+
+NMF - perform 3 vector NMF 
+```{r}
+LLB_readcounts <- as.data.frame(LLB_readcounts)
+head(LLB_readcounts)
+
+LLB_non_zero_matrix <- LLB_readcounts
+LLB_non_zero_matrix <- as.matrix(LLB_non_zero_matrix)
+LLB_non_zero_matrix[LLB_non_zero_matrix<1] <- 0.1; LLB_non_zero_matrix
+
+head(LLB_non_zero_matrix)
+
+set.seed(1234)
+LLB_nmf <- nmf(x = LLB_non_zero_matrix, rank = 3, method = 'brunet') # if not transposed, runs immediately, then just take non-transposed h matrix
+
+w <- t(coef(LLB_nmf))
+dim(w)
+head(w)
+
+h <- basis(LLB_nmf)
+dim(h)
+head(h)
+
+saveRDS(h, "./LLB_NMF.rds")
+```

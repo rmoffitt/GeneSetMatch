@@ -1,0 +1,76 @@
+---
+title: "KRAS_KO GSEA Ranks"
+author: "Lucie Chrastecka"
+date: "5/21/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, echo=FALSE}
+GSEA_OUTPUTS <- readRDS("./KRAS_GSEA.rds")
+```
+
+#KRAS_KO_C1
+```{r}
+print(GSEA_OUTPUTS$KRAS_KO$`./myC1.gmt`$Results[,1:7])
+
+```
+
+#KRAS_KO_C2
+```{r}
+print(GSEA_OUTPUTS$KRAS_KO$`./myC2.gmt`$Results[,1:7])
+
+```
+
+#KRAS_KO_C2 KEGG
+```{r}
+print(GSEA_OUTPUTS$KRAS_KO$`./myC2_KEGG.gmt`$Results[,1:7])
+
+```
+
+#KRAS_KO_C3
+```{r}
+print(GSEA_OUTPUTS$KRAS_KO$`./myC2_KEGG.gmt`$Results[,1:7])
+
+```
+
+#KRAS_KO_C4
+```{r}
+print(GSEA_OUTPUTS$KRAS_KO$`./myC4.gmt`$Results[,1:7])
+
+```
+
+#KRAS_KO_C5
+```{r}
+print(GSEA_OUTPUTS$KRAS_KO$`./myC5.gmt`$Results[,1:7])
+
+```
+
+#KRAS_KO_C6
+```{r}
+print(GSEA_OUTPUTS$KRAS_KO$`./myC6.gmt`$Results[,1:7])
+
+```
+
+#KRAS_KO_C7
+```{r}
+print(GSEA_OUTPUTS$KRAS_KO$`./myC7.gmt`$Results[,1:7])
+
+```
+
+#KRAS_KO_C8
+```{r}
+print(GSEA_OUTPUTS$KRAS_KO$`./myC8.gmt`$Results[,1:7])
+
+```
+
+
+```{r}
+edgertest <- runDESeq2_indFilterDeactive(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status`)
+print(summary(edgertest))
+head(edgertest$summary)
+
+```
