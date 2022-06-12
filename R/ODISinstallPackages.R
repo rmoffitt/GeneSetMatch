@@ -1,5 +1,5 @@
 #This script installes all of the required R packages to run ODIS
-
+#make the function check if a package is already installed 
 installCran <- function(package_name){
   install.packages(package_name)
 }

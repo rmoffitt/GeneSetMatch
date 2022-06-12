@@ -16,18 +16,14 @@
 #' ODIS.Multilevel.Heatmaps(gsea_results)
 
 
-#TO FIX
-#####figure out "go next"
-#####Run through all plots, save all
-##fftw library needs updating
+##DATA OF CHOICE
+# res_nmf <- readRDS("./Snyder_NMF_V123.rds")
+# res_nmf_org <- readRDS("./Snyder_NMF_ORG_V123.rds")
+# res_nmf_cell <- readRDS("./Snyder_NMF_CELL_V123.rds")
+# res_nmf_llb <- readRDS("./LLB_NMF_GSEA_V123.rds")
 
-res_nmf <- readRDS("./Snyder_NMF_V123.rds")
-res_nmf_org <- readRDS("./Snyder_NMF_ORG_V123.rds")
-res_nmf_cell <- readRDS("./Snyder_NMF_CELL_V123.rds")
-
-gsea_results <- res_nmf_cell
+gsea_results <- res_nmf_llb
 #i <- names(gsea_results[[3]][9])
-
 
 ###
 ODIS.Multilevel.Heatmaps <- function(gsea_results){
@@ -60,9 +56,9 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
           print("These results are EMPTY!!!")
           next
         }
-        theseResults <- theseResults[1:min(50, nrow(theseResults)),] #Selects up to top 30 enriched pathways and their stats by normalized enrichment score
+        theseResults <- theseResults[1:min(30, nrow(theseResults)),] #Selects up to top 30 enriched pathways and their stats by normalized enrichment score
         theEdge = unique(unlist(theseResults$leadingEdge)) #Takes all the leading edge genes from theseResults
-        theTopGenes = theEdge[order(match(theEdge, orig_matrix$ENTREZID))][1:min(99, length(theEdge))] #Returns the row index of theEdge vs orig_matrix, which is sorted by log2FoldChange (decreasing)
+        theTopGenes = theEdge[order(match(theEdge, orig_matrix$ENTREZID))][1:min(30, length(theEdge))] #Returns the row index of theEdge vs orig_matrix, which is sorted by log2FoldChange (decreasing)
         #print('theTopGenes:')
         #print(length(theTopGenes)) #checks length, should be 30
         agg_leading_edge = orig_matrix[orig_matrix$ENTREZID %in% theTopGenes,c("log2FoldChange","ENTREZID")] #Takes the genes corresponding to the index of theTopGenes

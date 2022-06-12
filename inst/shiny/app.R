@@ -116,7 +116,7 @@ ui <- fluidPage(
                        # issue -- set plot output size to prevent weird stretching
                        tabPanel("analysis output", plotOutput("analysisPlot"), textOutput("gseaPrompt")),
                        tabPanel("GSEA output", uiOutput("clusterRadioUI"), uiOutput("genesetRadios"), DT::dataTableOutput("gseaTable")),
-                       tabPanel("ODIS Heatmap", uiOutput("heatmapUI"), uiOutput("heatmapPDF")),
+                       tabPanel("ODIS Heatmap", uiOutput("heatmapUI"), uiOutput("heatmapPDF"))
                        #tabPanel("PDF test", tags$iframe(style="height:900px; width:75%", src="http://104.41.140.14:8787/files/ODIS2/Negative_C1.gmt.pdf"))
            )
         )
