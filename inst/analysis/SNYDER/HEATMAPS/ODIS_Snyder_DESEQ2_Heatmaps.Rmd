@@ -15,6 +15,7 @@ PACKAGE LIBRARY
 ```{r}
 library(gplots)
 library(pdist)
+library(genefilter)
 ```
 
 GENE VS GENE SET HEATMAPS
