@@ -15,6 +15,8 @@ Package Library
 ```{r}
 library(BBmisc) #for normalize
 library(msigdbr)
+library(clusterProfiler)
+
 ```
 
 ALL MY SETS + CONVERSION OF LIST OF SENTS INTO .GMT FILES
@@ -27,7 +29,8 @@ C4_df = msigdbr(species = "Rattus norvegicus", category = "C4", subcategory = "C
 C5_df = msigdbr(species = "Rattus norvegicus", category = "C5", subcategory = "BP")
 C6_df = msigdbr(species = "Rattus norvegicus", category = "C6", subcategory = "")
 C7_df = msigdbr(species = "Rattus norvegicus", category = "C7", subcategory = "IMMUNESIGDB")
-C8_df = msigdbr(species = "Rattus norvegicus", category = "H", subcategory = "")
+C8_df = msigdbr(species = "Rattus norvegicus", category = "C8", subcategory = "") #update on all
+Hall_df = msigdbr(species = "Rattus norvegicus", category = "H", subcategory = "")
 
 list_of_sets = list(C1 = C1_df,
                     C2 = C2_df,
@@ -37,7 +40,8 @@ list_of_sets = list(C1 = C1_df,
                     C5 = C5_df,
                     C6 = C6_df,
                     C7 = C7_df,
-                    C8 = C8_df)
+                    C8 = C8_df,
+                    Hall = Hall_df)
 
 list_of_gmt_files <- convert_msigdbr_obj_to_gmt_file(list_of_sets)
 ```
@@ -47,7 +51,7 @@ Make GSEA friendly "gene_list" from NMF Vectors
 LLB_NMF <- readRDS("./LLB_NMF.rds")
 head(LLB_NMF)
 
-nmf_norm <- normalize(LLB_NMF, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")
+nmf_norm <- BBmisc::normalize(LLB_NMF, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")
 head(nmf_norm)
 df1 <- nmf_norm[,1]
 head(df1)
@@ -80,16 +84,16 @@ for(Y in list(list("V1" = nmf_norm[,1, drop = F]),
   #orig_matrix must be a data frame
   LLB_NMF_GSEA[[names(Y)]]$orig_matrix <- as.data.frame(list(log2FoldChange = gene_list,
                                                             ENTREZID = row.names(X),
-                                                            SYMBOL = row.names(X)))
+                                                            SYMBOL = RatENT2RatSYM(row.names(X)))) #rat conversion function returns some NA's 
   
 }
 
 summary(LLB_NMF_GSEA)
-summary(LLB_NMF_GSEA$V2)
-summary(LLB_NMF_GSEA$V2$orig_matrix)
+summary(LLB_NMF_GSEA$V1)
+summary(LLB_NMF_GSEA$V1$orig_matrix)
 head(LLB_NMF_GSEA$V2$`./myC1.gmt`$Results)
 str(LLB_NMF_GSEA$V2$orig_matrix$log2FoldChange)
 
-saveRDS(LLB_NMF_GSEA, "./LLB_NMF_GSEA_V123.rds")
+saveRDS(LLB_NMF_GSEA, "./LLB_NMF_GSEA_SYM.rds")
 
 ```
