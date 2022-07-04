@@ -18,12 +18,13 @@
 
 ##DATA OF CHOICE
 # res_nmf <- readRDS("./Snyder_NMF_V123.rds")
-# res_nmf_org <- readRDS("./Snyder_NMF_ORG_V123.rds")
-# res_nmf_cell <- readRDS("./Snyder_NMF_CELL_V123.rds")
-# res_nmf_llb <- readRDS("./LLB_NMF_GSEA_V123.rds")
+res_nmf_org <- readRDS("./Snyder_NMF_ORG_GSEA.rds")
+res_nmf_cell <- readRDS("./Snyder_NMF_CELL_GSEA.rds")
+res_nmf_llb_sym <- readRDS("./LLB_NMF_GSEA_SYM.rds")
+res_nmf_llb <- readRDS("./LLB_NMF_GSEA.rds")
 
-gsea_results <- res_nmf_llb
-#i <- names(gsea_results[[3]][9])
+gsea_results <- res_nmf_cell
+i <- names(gsea_results[[3]][5])
 
 ###
 ODIS.Multilevel.Heatmaps <- function(gsea_results){
@@ -61,7 +62,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         theTopGenes = theEdge[order(match(theEdge, orig_matrix$ENTREZID))][1:min(30, length(theEdge))] #Returns the row index of theEdge vs orig_matrix, which is sorted by log2FoldChange (decreasing)
         #print('theTopGenes:')
         #print(length(theTopGenes)) #checks length, should be 30
-        agg_leading_edge = orig_matrix[orig_matrix$ENTREZID %in% theTopGenes,c("log2FoldChange","ENTREZID")] #Takes the genes corresponding to the index of theTopGenes
+        agg_leading_edge = orig_matrix[orig_matrix$ENTREZID %in% theTopGenes,c("log2FoldChange","ENTREZID", "SYMBOL")] # ", SYMBOL" Takes the genes corresponding to the index of theTopGenes
         #print('agg_leading_edge:')
         #print(str(agg_leading_edge)) #checks dim of agg_leading_edge, should be 30 x 2
         #print('theseResults$pathway:')
@@ -75,16 +76,18 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         print(dim(theMatrix)) #checks dim of theMatrix, should be 30X30 or so
         
         rownames(theMatrix) <- theseResults$pathway #assign rownames (pathways)
-        colnames(theMatrix) <- agg_leading_edge$ENTREZID #assign colnames (genes)
+        colnames(theMatrix) <- agg_leading_edge$ENTREZID #assign colnames (genes) #SYMBOL
         
         #for each of the leading edges, clean out theMatrix
         print('theMatrix:')
         print(str(theMatrix))
         
-        for(j in 1:length(theseResults$leadingEdge)){
+        
+        for(j in 1:length(theseResults$leadingEdge)){ 
           #print('j:')
           #print(j)
-          tle <- theseResults$leadingEdge[[j]]
+          tle <- (theseResults$leadingEdge[[j]])
+          #tle <- (theseResults$leadingEdge[[j]])##theseResults$leadingEdge ia ENTREZ, theMatrix is now SYMBOL
           theMatrix[j, !(colnames(theMatrix) %in% tle)] <- 0
         }
         #image(t(theMatrix))
@@ -136,46 +139,31 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     print(str(theBigMatrix))
     
     print('theBigMatrix is clean')
-    image(theBigMatrix)    
-    
-    #if there is only one pathway in theBigMatrix, skip it
-    if (nrow(theBigMatrix) == 1) {
-      next
-    }
-    #re-order theBigMatrix ()
-    #if there is less than 2 rows in TheBigMatrix, clustering is skipped
-        if (nrow(theBigMatrix) > 2) {
-
-      rowCluster <- hclust(distfun(theBigMatrix))
-      colCluster <- hclust(distfun(t(theBigMatrix)))
-
-
-      theBigMatrixOrdered <- theBigMatrix[rowCluster$order, colCluster$order] #ordered rows and columns by rowClust$order
-      image(t(theBigMatrixOrdered))
-    } else {
-      theBigMatrixOrdered <- theBigMatrix
-    }
-    
+    image(theBigMatrix)
+   
     #This forloop determines RGB triplet for each gene, builds corresponding matrices and plots a raster
     rbgmatrix <- matrix(data = "#FFFFFF",
-                        ncol = length(colnames(theBigMatrixOrdered)), #theBigMatrixOrdered
-                        nrow = length(rownames(theBigMatrixOrdered))) #theBigMatrixOrdered
+                        ncol = length(colnames(theBigMatrix)), 
+                        nrow = length(rownames(theBigMatrix))) 
     
-    colnames(rbgmatrix) = colnames(theBigMatrixOrdered) #theBigMatrixOrdered
-    rownames(rbgmatrix) = rownames(theBigMatrixOrdered) #theBigMatrixOrdered
+    colnames(rbgmatrix) = colnames(theBigMatrix) 
+    rownames(rbgmatrix) = rownames(theBigMatrix) 
     
     print("rbg matrix initialized")
     
-    for(setID in 1:nrow(theBigMatrixOrdered)){ #theBigMatrixOrdered
-      for(geneID in 1:ncol(theBigMatrixOrdered)){ #theBigMatrixOrdered
-        tbmo <- theBigMatrixOrdered[setID, geneID] #theBigMatrixOrdered
+    for(setID in 1:nrow(theBigMatrix)){ 
+      for(geneID in 1:ncol(theBigMatrix)){ 
+        tbmo <- theBigMatrix[setID, geneID] 
         if (tbmo == 0){
           rbgmatrix[setID, geneID] <- "#000000"
         }
-        else {e <- colnames(theBigMatrixOrdered)[geneID] #theBigMatrixOrdered
-        r <- gsea_results$V1$orig_matrix[e,"log2FoldChange"] 
-        g <- gsea_results$V2$orig_matrix[e,"log2FoldChange"]
-        b <- gsea_results$V3$orig_matrix[e,"log2FoldChange"]
+        else {e <- colnames(theBigMatrix)[geneID] 
+        r <- gsea_results$V1$orig_matrix[e,"log2FoldChange"]  #gsea_results$V1$orig_matrix[which(gsea_results$V1$orig_matrix$SYMBOL == e)
+                                         #,"log2FoldChange"] 
+        g <- gsea_results$V2$orig_matrix[e,"log2FoldChange"]  #gsea_results$V2$orig_matrix[which(gsea_results$V2$orig_matrix$SYMBOL == e)
+                                         #,"log2FoldChange"]
+        b <- gsea_results$V3$orig_matrix[e,"log2FoldChange"] #gsea_results$V3$orig_matrix[which(gsea_results$V3$orig_matrix$SYMBOL == e)
+                                         #,"log2FoldChange"]
         rbgmatrix[setID, geneID] <- rgb(r, g, b)
         }
       }
@@ -185,25 +173,28 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     
     ###make shadow hsv matrix that looks like rgbmatrix but instead of #000000 it has hsv.h value, so that we can cluster by color
     hsvmatrix <- matrix(data = 0,
-                        ncol = length(colnames(theBigMatrixOrdered)), #theBigMatrixOrdered
-                        nrow = length(rownames(theBigMatrixOrdered))) #theBigMatrixOrdered
+                        ncol = length(colnames(theBigMatrix)), 
+                        nrow = length(rownames(theBigMatrix))) 
     
-    colnames(hsvmatrix) = colnames(theBigMatrixOrdered) #theBigMatrixOrdered
-    rownames(hsvmatrix) = rownames(theBigMatrixOrdered) #theBigMatrixOrdered
+    colnames(hsvmatrix) = colnames(theBigMatrix) 
+    rownames(hsvmatrix) = rownames(theBigMatrix) 
     
     library(DescTools)
     print("HSV matrix initialized")
     
-    for(setID in 1:nrow(theBigMatrixOrdered)){ #theBigMatrixOrdered
-      for(geneID in 1:ncol(theBigMatrixOrdered)){ #theBigMatrixOrdered
-        tbmo <- theBigMatrixOrdered[setID, geneID] #theBigMatrixOrdered
+    for(setID in 1:nrow(theBigMatrix)){ 
+      for(geneID in 1:ncol(theBigMatrix)){ 
+        tbmo <- theBigMatrix[setID, geneID] 
         if (tbmo == 0){
           hsvmatrix[setID, geneID] <- NA
         }
-        else {e <- colnames(theBigMatrixOrdered)[geneID] #theBigMatrixOrdered  test ends here
-        r <- gsea_results$V1$orig_matrix[e,"log2FoldChange"] 
-        g <- gsea_results$V2$orig_matrix[e,"log2FoldChange"]
-        b <- gsea_results$V3$orig_matrix[e,"log2FoldChange"]
+        else {e <- colnames(theBigMatrix)[geneID] 
+        r <- gsea_results$V1$orig_matrix[e,"log2FoldChange"] # gsea_results$V1$orig_matrix[which(gsea_results$V1$orig_matrix$SYMBOL == e)
+                                         #,"log2FoldChange"] 
+        g <- gsea_results$V2$orig_matrix[e,"log2FoldChange"]  #gsea_results$V2$orig_matrix[which(gsea_results$V2$orig_matrix$SYMBOL == e)
+                                         #,"log2FoldChange"]
+        b <- gsea_results$V3$orig_matrix[e,"log2FoldChange"]  #gsea_results$V3$orig_matrix[which(gsea_results$V3$orig_matrix$SYMBOL == e)
+                                         #,"log2FoldChange"]
         hsvmatrix[setID, geneID] <- rgb(r, g, b)
         hsv <- t(ColToHsv(hsvmatrix[setID, geneID]))
         hsvmatrix[setID, geneID] <- hsv[,1]
@@ -225,8 +216,10 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         h.x <- cos(averageHue*2*pi)
         h.y <- sin(averageHue*2*pi)
         h.coords <- cbind(h.x,h.y)
+        print('h coordinates')
         print(head(h.coords))
         d <- as.matrix(dist(h.coords)) #figure out color in hue space and take difference between them (delta)
+        print('str of d')
         print(str(d))
         #figure how many genes overlap row-to-row
         overlap <- (1-is.na(x))%*%t(1-is.na(x))
@@ -234,8 +227,10 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         o.square <- sqrt(o.diag%*%t(o.diag))
         overlap <- 1-(overlap/o.square)
         #combine these two metrics
-        print(d[1:5,1:5])
-        print(overlap[1:5,1:5])
+        #print('d matrix')
+        #print(d[1:5,1:5])
+        #print('overlap matrix')
+        #print(overlap[1:5,1:5])
         #add distance overlap and color overlap (instead of multiply?????)
         newdist <- weight*d+overlap
         return(as.dist(newdist))
@@ -269,6 +264,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     
     
     xlabels <- c(colnames(rbgmatrix))
+    xlabels <- MouseENT2MouseSYM(xlabels) #add symbols here instead of before
     ylabels <- c(rownames(rbgmatrix))
     
     print(paste0(i, ".pdf"))

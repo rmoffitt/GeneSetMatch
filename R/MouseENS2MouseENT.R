@@ -13,8 +13,8 @@
 #' mouseENT <- MouseENS2MouseENT(MouseGenes)
 
 MouseENS2MouseENT <- function(MouseGenes){
-  mouseENT = useMart("ensembl", dataset = "mmusculus_gene_ensembl", host = "useast.ensembl.org")
-  mouseENS = useMart("ensembl", dataset = "mmusculus_gene_ensembl", host = "useast.ensembl.org")
+  mouseENT = useMart("ensembl", dataset = "mmusculus_gene_ensembl", host = "uswest.ensembl.org") #useast.ensembl.org is down
+  mouseENS = useMart("ensembl", dataset = "mmusculus_gene_ensembl", host = "uswest.ensembl.org") #useast.ensembl.org is down
   genesMouseENS2MouseENT = getBM(attributes = c("entrezgene_id", "ensembl_gene_id", "mgi_symbol"),
                              filters = "ensembl_gene_id", 
                              values = MouseGenes, 
