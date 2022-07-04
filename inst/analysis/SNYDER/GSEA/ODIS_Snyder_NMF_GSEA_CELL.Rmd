@@ -25,7 +25,9 @@ C4_df = msigdbr(species = "Mus musculus", category = "C4", subcategory = "CGN")
 C5_df = msigdbr(species = "Mus musculus", category = "C5", subcategory = "BP")
 C6_df = msigdbr(species = "Mus musculus", category = "C6", subcategory = "")
 C7_df = msigdbr(species = "Mus musculus", category = "C7", subcategory = "IMMUNESIGDB")
-C8_df = msigdbr(species = "Mus musculus", category = "H", subcategory = "")
+C8_df = msigdbr(species = "Mus musculus", category = "C8", subcategory = "") 
+Hall_df = msigdbr(species = "Mus musculus", category = "H", subcategory = "")
+
 
 list_of_sets = list(C1 = C1_df,
                     C2 = C2_df,
@@ -35,17 +37,18 @@ list_of_sets = list(C1 = C1_df,
                     C5 = C5_df,
                     C6 = C6_df,
                     C7 = C7_df,
-                    C8 = C8_df)
+                    C8 = C8_df,
+                    Hall = Hall_df)
 
 list_of_gmt_files <- convert_msigdbr_obj_to_gmt_file(list_of_sets)
 ```
 
 Make GSEA friendly "gene_list" from NMF Vectors
 ```{r}
-Snyder_NMF_CELL <- readRDS("./Snyder_NMF_cell.rds")
+Snyder_NMF_CELL <- readRDS("./Snyder_NMF_CELL.rds")
 head(Snyder_NMF_CELL)
 
-nmf_norm_cell <- normalize(Snyder_NMF_CELL, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")
+nmf_norm_cell <- BBmisc::normalize(Snyder_NMF_CELL, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")
 head(nmf_norm_cell)
 df1 <- nmf_norm_cell[,1]
 head(df1)
@@ -75,19 +78,19 @@ for(Y in list(list("V1" = nmf_norm_cell[,1, drop = F]),
     res <- ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.05)
     snyder_nmfs_cell[[names(Y)]][[i]] <- res  ## find a way to reference "nmf_norm" and "nmf_norm_org"
   }
-  #orig_matrix must be a data frame
+  #orig_matrix must be a data frame, added conversion function for ENT to SYM
   snyder_nmfs_cell[[names(Y)]]$orig_matrix <- as.data.frame(list(log2FoldChange = gene_list,
-                                                            ENTREZID = row.names(X),
-                                                            SYMBOL = row.names(X)))
+                                                            ENTREZID = row.names(X), 
+                                                            SYMBOL = MouseENT2MouseSYM(row.names(X)))) 
   
 }
 
 summary(snyder_nmfs_cell)
 summary(snyder_nmfs_cell$V2)
 summary(snyder_nmfs_cell$V2$orig_matrix)
-head(snyder_nmfs_cell$V2$`./myC1.gmt`$Results)
+head(snyder_nmfs_cell$V3$`./myC1.gmt`$Results)
 str(snyder_nmfs_cell$V2$orig_matrix$log2FoldChange)
 
-saveRDS(snyder_nmfs_cell, "./Snyder_NMF_CELL_V123.rds")
+saveRDS(snyder_nmfs_cell, "./Snyder_NMF_CELL_GSEA.rds")
 
 ```
