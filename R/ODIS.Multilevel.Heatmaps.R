@@ -23,8 +23,12 @@ res_nmf_cell <- readRDS("./Snyder_NMF_CELL_GSEA.rds")
 res_nmf_llb_sym <- readRDS("./LLB_NMF_GSEA_SYM.rds")
 res_nmf_llb <- readRDS("./LLB_NMF_GSEA.rds")
 
-gsea_results <- res_nmf_cell
-i <- names(gsea_results[[3]][5])
+res_nmf_tfpm <- readRDS("./LLB_NMF_GSEA_TFPM.rds")
+
+gsea_results <- res_nmf_tfpm
+
+
+i <- names(gsea_results[[3]][10])
 
 ###
 ODIS.Multilevel.Heatmaps <- function(gsea_results){
@@ -57,9 +61,9 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
           print("These results are EMPTY!!!")
           next
         }
-        theseResults <- theseResults[1:min(30, nrow(theseResults)),] #Selects up to top 30 enriched pathways and their stats by normalized enrichment score
+        theseResults <- theseResults[1:min(20, nrow(theseResults)),] #Selects up to top 30 enriched pathways and their stats by normalized enrichment score
         theEdge = unique(unlist(theseResults$leadingEdge)) #Takes all the leading edge genes from theseResults
-        theTopGenes = theEdge[order(match(theEdge, orig_matrix$ENTREZID))][1:min(30, length(theEdge))] #Returns the row index of theEdge vs orig_matrix, which is sorted by log2FoldChange (decreasing)
+        theTopGenes = theEdge[order(match(theEdge, orig_matrix$ENTREZID))][1:min(60, length(theEdge))] #Returns the row index of theEdge vs orig_matrix, which is sorted by log2FoldChange (decreasing)
         #print('theTopGenes:')
         #print(length(theTopGenes)) #checks length, should be 30
         agg_leading_edge = orig_matrix[orig_matrix$ENTREZID %in% theTopGenes,c("log2FoldChange","ENTREZID", "SYMBOL")] # ", SYMBOL" Takes the genes corresponding to the index of theTopGenes
@@ -204,37 +208,35 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     class(hsvmatrix) <- "numeric"
     print('str of hsvmatrix')
     print(str(hsvmatrix))
-    
     print('clustering hsv matrix now')
     
     ### clustering hsv matrix based on both color and pathway membership
     if (nrow(hsvmatrix) > 2) {
-      
       HSV.ROW.distfun <- function(x,weight) {
-        # figure the color for that row
-        averageHue <- rowMeans(x,na.rm=TRUE)
-        h.x <- cos(averageHue*2*pi)
-        h.y <- sin(averageHue*2*pi)
-        h.coords <- cbind(h.x,h.y)
-        print('h coordinates')
-        print(head(h.coords))
-        d <- as.matrix(dist(h.coords)) #figure out color in hue space and take difference between them (delta)
-        print('str of d')
-        print(str(d))
-        #figure how many genes overlap row-to-row
-        overlap <- (1-is.na(x))%*%t(1-is.na(x))
-        o.diag <- diag(overlap)
-        o.square <- sqrt(o.diag%*%t(o.diag))
-        overlap <- 1-(overlap/o.square)
-        #combine these two metrics
-        #print('d matrix')
-        #print(d[1:5,1:5])
-        #print('overlap matrix')
-        #print(overlap[1:5,1:5])
-        #add distance overlap and color overlap (instead of multiply?????)
-        newdist <- weight*d+overlap
-        return(as.dist(newdist))
-      }
+      # figure the color for that row
+      averageHue <- rowMeans(x,na.rm=TRUE)
+      h.x <- cos(averageHue*2*pi)
+      h.y <- sin(averageHue*2*pi)
+      h.coords <- cbind(h.x,h.y)
+      print('h coordinates')
+      print(head(h.coords))
+      d <- as.matrix(dist(h.coords)) #figure out color in hue space and take difference between them (delta)
+      print('str of d')
+      print(str(d))
+      #figure how many genes overlap row-to-row
+      overlap <- (1-is.na(x))%*%t(1-is.na(x))
+      o.diag <- diag(overlap)
+      o.square <- sqrt(o.diag%*%t(o.diag))
+      overlap <- 1-(overlap/o.square)
+      #combine these two metrics
+      #print('d matrix')
+      #print(d[1:5,1:5])
+      #print('overlap matrix')
+      #print(overlap[1:5,1:5])
+      #add distance overlap and color overlap (instead of multiply?????)
+      newdist <- weight*d+overlap
+      return(as.dist(newdist))
+    }
 
       rowcluster <- hclust(HSV.ROW.distfun(hsvmatrix,3))
       colcluster <- hclust(HSV.ROW.distfun(t(hsvmatrix),1.5))
@@ -242,8 +244,8 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
       
       hsvmatrixOrdered <- hsvmatrix[rowcluster$order, colcluster$order] #ordered rows and columns by rowClust$order
       image(t(hsvmatrixOrdered))
-    } else {
-      hsvmatrixOrdered <- hsvmatrix
+    } else { next
+      #hsvmatrixOrdered <- hsvmatrix
     }
     print('hsvmatrixordered')
     print(str(hsvmatrixOrdered))
@@ -264,7 +266,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     
     
     xlabels <- c(colnames(rbgmatrix))
-    xlabels <- MouseENT2MouseSYM(xlabels) #add symbols here instead of before
+    xlabels <- RatENT2RatSYM(xlabels) #add symbols here instead of before
     ylabels <- c(rownames(rbgmatrix))
     
     print(paste0(i, ".pdf"))
