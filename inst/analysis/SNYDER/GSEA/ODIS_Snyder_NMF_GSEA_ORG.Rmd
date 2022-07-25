@@ -55,31 +55,63 @@ head(df1)
 
 ```
 
+Apply PatternMarker Transformation and make GSEA friendly "gene_list"
+```{r}
+Snyder_NMF_ORG <- readRDS("./Snyder_NMF_ORG.rds")
+head(Snyder_NMF_ORG)
+
+nmf_pm <- PatternMarker(Snyder_NMF_ORG)
+head(nmf_pm)
+
+rank <- 3
+s_nmf_tfpm <- (sqrt(rank-1)/2 - nmf_pm)^3
+head(s_nmf_tfpm)
+df2 <- s_nmf_tfpm[,1]
+head(df2)
+```
+
 Gsea on All three vectors of NMF_ORG
 ```{r}
 
 snyder_nmfs_org <- list()
 
-for(Y in list(list("V1" = nmf_norm_org[,1, drop = F]),
-              list("V2" = nmf_norm_org[,2, drop = F]),
-              list("V3" = nmf_norm_org[,3, drop = F])) #drop = f MEANS KEEP IT AS A MATRIX WITH COLLUMNS AND 
-){
-  X <- Y[[1]]
-  
-  gene_list = X[,1]
-  gene_list = sort(gene_list, decreasing = TRUE)
-  gene_list = gene_list[!duplicated(names(gene_list))]
-  head(gene_list, n = 5)
-  
+Q = list(V1 = nmf_norm_org[,1, drop = F],
+         V2 = nmf_norm_org[,2, drop = F],
+         V3 = nmf_norm_org[,3, drop = F])
 
+
+## make list of tfpm scores.
+new_y = list(V1 = s_nmf_tfpm[,1, drop = F],
+             V2 = s_nmf_tfpm[,2, drop = F],
+             V3 = s_nmf_tfpm[,3, drop = F])
+
+for(Y in c("V1","V2","V3") #drop = f MEANS KEEP IT AS A MATRIX WITH COLLUMNS AND
+){
+  
+  ## Make vector sorted gene list of TFPM scores
+    X <- new_y[[Y]]
+    gene_list = X[,1]
+    gene_list = sort(gene_list, decreasing = TRUE)
+    gene_list = gene_list[!duplicated(names(gene_list))]
+    print("head gene_list")
+    head(gene_list, n = 5)
+    
+    ## Make vector sorted gene list of raw nmf scores
+    Z <- Q[[Y]]
+    orig_value = Z[,1]
+    orig_value = sort(orig_value, decreasing = TRUE)
+    orig_value = orig_value[!duplicated(names(orig_value))]
+    print("head orig_value")
+    head(orig_value, n = 5)
   
   for(i in list_of_gmt_files){
     print(i)
     res <- ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.05)
-    snyder_nmfs_org[[names(Y)]][[i]] <- res  ## find a way to reference "nmf_norm" and "nmf_norm_org"
+    snyder_nmfs_org[[Y]][[i]] <- res  ## find a way to reference "nmf_norm" and "nmf_norm_org"
   }
   #orig_matrix must be a data frame, added conversion function for ENT to SYM
-  snyder_nmfs_org[[names(Y)]]$orig_matrix <- as.data.frame(list(log2FoldChange = gene_list,
+  snyder_nmfs_org[[Y]]$orig_matrix <- as.data.frame(list(log2FoldChange = orig_value,
+                                                         EnrichmentScore = gene_list,
                                                             ENTREZID = row.names(X), 
                                                             SYMBOL = MouseENT2MouseSYM(row.names(X)))) 
   
@@ -92,5 +124,4 @@ head(snyder_nmfs_org$V1$`./myC1.gmt`$Results)
 str(snyder_nmfs_org$V2$orig_matrix$log2FoldChange)
 
 saveRDS(snyder_nmfs_org, "./Snyder_NMF_ORG_GSEA.rds")
-
 ```

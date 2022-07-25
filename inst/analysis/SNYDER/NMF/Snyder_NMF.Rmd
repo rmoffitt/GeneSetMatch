@@ -1,0 +1,155 @@
+---
+title: "Snyder_NMF_Cell"
+author: "Lucie Chrastecka"
+date: "4/22/2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+LIBRARY
+```{r}
+library(biomaRt)
+library(wesanderson)
+library(FactoMineR)
+library(factoextra)
+library(dplyr)
+library(gridExtra)
+library(NMF)
+library(BBmisc)
+library(pdist)
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+library(qusage)
+
+
+```
+
+
+DATA
+```{r}
+
+full_Snyder <- ODIS2::full_Snyder
+full_Snyder$ex <- as.matrix(full_Snyder$ex)
+snyder_readcounts <- full_Snyder$ex
+head(snyder_readcounts)
+
+```
+
+#Add SYMBOL, ENTREZ, ENSEMBL to featInfo
+```{r}
+
+SnyderMouseGenes <- full_Snyder$featInfo$ENSEMBL
+tmp_snyder <- MouseENS2MouseENT(SnyderMouseGenes)
+head(tmp_snyder)
+#tmp_snyder <- lapply(tmp_snyder,as.character)
+summary(tmp_snyder)
+head(tmp_snyder)
+str(tmp_snyder)
+tmp_snyder <- as.data.frame(tmp_snyder)
+
+full_Snyder$featInfo <- as.data.frame(full_Snyder$featInfo)
+full_Snyder$featInfo <- merge(full_Snyder$featInfo, tmp_snyder)
+summary(full_Snyder$featInfo)
+head(full_Snyder$featInfo)
+```
+
+Subset only Cell Culture
+```{r}
+#TRIMMING ONLY ORGANOIDS
+idx = which(full_Snyder$sampInfo$tissue == "cell_culture")
+snyder_readcounts_cell = full_Snyder$ex[,idx]
+str(snyder_readcounts_cell)
+head(snyder_readcounts_cell)
+
+snyder_samps_cell = full_Snyder$sampInfo[idx,]
+str(snyder_samps_cell)
+head(snyder_samps_cell)
+```
+
+NMF only cell_culture
+```{r}
+snyder_readcounts_cell <- as.data.frame(snyder_readcounts_cell)
+snyder_readcounts_cell <- tibble::rownames_to_column(snyder_readcounts_cell, "ENSEMBL")
+snyder_readcounts_cell <- plyr::join(snyder_readcounts_cell, full_Snyder$featInfo)
+my_entrez_readcounts_cell <- snyder_readcounts_cell[,c(2:10)]
+my_entrez_readcounts_cell$ENTREZID <- as.character(my_entrez_readcounts_cell$ENTREZID)
+#my_entrez_readcounts_cell <- my_entrez_readcounts_cell[,c(-9)]
+head(my_entrez_readcounts_cell)
+
+my_entrez_readcounts_cell <- aggregate(x=my_entrez_readcounts_cell[,-which(colnames(my_entrez_readcounts_cell) == "ENTREZID")],
+                                  by = list(ENTREZID= my_entrez_readcounts_cell$ENTREZID),
+                                  FUN = sum)
+
+non_zero_matrix_cell <- my_entrez_readcounts_cell
+non_zero_matrix_cell <- data.frame(non_zero_matrix_cell[,-1], row.names = non_zero_matrix_cell[,1])
+non_zero_matrix_cell <- as.matrix(non_zero_matrix_cell)
+non_zero_matrix_cell[non_zero_matrix_cell<1] <- 0.1; non_zero_matrix_cell
+
+head(non_zero_matrix_cell)
+
+set.seed(1234)
+snyder_nmf_cell <- nmf(x = non_zero_matrix_cell, rank = 3, method = 'brunet') # if not transposed, runs mmediately, then just take non-trasposed h matrix
+
+w_cell <- t(coef(snyder_nmf_cell))
+dim(w_cell)
+head(w_cell)
+
+h_cell <- basis(snyder_nmf_cell)
+dim(h_cell)
+head(h_cell)
+
+# h_cell_plus <- as.data.frame(h_cell)
+# h_cell_plus$SYMBOL <- row.names(h_cell_plus)
+# h_cell_plus <- merge(h_cell_plus, full_Snyder$featInfo)
+# head(h_cell_plus)
+
+saveRDS(h_cell, "./Snyder_NMF_CELL.rds")
+```
+
+Subset only Organoids
+```{r}
+idx = which(full_Snyder$sampInfo$tissue == "organoid")
+snyder_readcounts_org = full_Snyder$ex[,idx]
+str(snyder_readcounts_org)
+head(snyder_readcounts_org)
+
+snyder_samps_org = full_Snyder$sampInfo[idx,]
+str(snyder_samps_org)
+head(snyder_samps_org)
+```
+
+NMF only Organoids
+```{r}
+snyder_readcounts_org <- as.data.frame(snyder_readcounts_org)
+snyder_readcounts_org <- tibble::rownames_to_column(snyder_readcounts_org, "ENSEMBL")
+snyder_readcounts_org <- plyr::join(snyder_readcounts_org, full_Snyder$featInfo)
+my_symbol_readcounts_org <- snyder_readcounts_org[,c(2:9, 11)]
+my_symbol_readcounts_org$SYMBOL <- as.character(my_symbol_readcounts_org$SYMBOL)
+#my_entrez_readcounts_cell <- my_entrez_readcounts_cell[,c(-9)]
+head(my_symbol_readcounts_org)
+
+my_symbol_readcounts_org <- aggregate(x=my_symbol_readcounts_org[,-which(colnames(my_symbol_readcounts_org) == "SYMBOL")],
+                                  by = list(SYMBOL= my_symbol_readcounts_org$SYMBOL),
+                                  FUN = sum)
+
+non_zero_matrix_org <- my_symbol_readcounts_org
+non_zero_matrix_org <- data.frame(non_zero_matrix_org[,-1], row.names = non_zero_matrix_org[,1])
+non_zero_matrix_org <- as.matrix(non_zero_matrix_org)
+non_zero_matrix_org[non_zero_matrix_org<1] <- 0.1; non_zero_matrix_org
+
+head(non_zero_matrix_org)
+
+set.seed(1234)
+snyder_nmf_org <- nmf(x = non_zero_matrix_org, rank = 3, method = 'brunet') # if not transposed, runs mmediately, then just take non-trasposed h matrix
+
+w_org <- t(coef(snyder_nmf_org))
+dim(w_org)
+head(w_org)
+
+h_org <- basis(snyder_nmf_org)
+dim(h_org)
+head(h_org)
+
+saveRDS(h_org, "./Snyder_NMF_ORG.rds")
+```
