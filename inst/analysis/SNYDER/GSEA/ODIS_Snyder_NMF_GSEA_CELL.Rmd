@@ -48,6 +48,7 @@ Make GSEA friendly "gene_list" from NMF Vectors
 Snyder_NMF_CELL <- readRDS("./Snyder_NMF_CELL.rds")
 head(Snyder_NMF_CELL)
 
+
 nmf_norm_cell <- BBmisc::normalize(Snyder_NMF_CELL, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")
 head(nmf_norm_cell)
 df1 <- nmf_norm_cell[,1]

@@ -22,10 +22,9 @@ res_nmf_org <- readRDS("./Snyder_NMF_ORG_GSEA.rds")
 res_nmf_cell <- readRDS("./Snyder_NMF_CELL_GSEA.rds")
 res_nmf_llb_sym <- readRDS("./LLB_NMF_GSEA_SYM.rds")
 res_nmf_llb <- readRDS("./LLB_NMF_GSEA.rds")
-
 res_nmf_tfpm <- readRDS("./LLB_NMF_GSEA_TFPM.rds")
 
-gsea_results <- res_nmf_tfpm
+gsea_results <- res_nmf_cell
 
 
 i <- names(gsea_results[[3]][10])
@@ -61,7 +60,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
           print("These results are EMPTY!!!")
           next
         }
-        theseResults <- theseResults[1:min(20, nrow(theseResults)),] #Selects up to top 30 enriched pathways and their stats by normalized enrichment score
+        theseResults <- theseResults[1:min(60, nrow(theseResults)),] #Selects up to top 30 enriched pathways and their stats by normalized enrichment score
         theEdge = unique(unlist(theseResults$leadingEdge)) #Takes all the leading edge genes from theseResults
         theTopGenes = theEdge[order(match(theEdge, orig_matrix$ENTREZID))][1:min(60, length(theEdge))] #Returns the row index of theEdge vs orig_matrix, which is sorted by log2FoldChange (decreasing)
         #print('theTopGenes:')
@@ -244,6 +243,8 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
       
       hsvmatrixOrdered <- hsvmatrix[rowcluster$order, colcluster$order] #ordered rows and columns by rowClust$order
       image(t(hsvmatrixOrdered))
+      plot(rowcluster)
+      plot(colcluster)
     } else { next
       #hsvmatrixOrdered <- hsvmatrix
     }
@@ -266,7 +267,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     
     
     xlabels <- c(colnames(rbgmatrix))
-    xlabels <- RatENT2RatSYM(xlabels) #add symbols here instead of before
+    xlabels <- MouseENT2MouseSYM(xlabels) #add symbols here instead of before
     ylabels <- c(rownames(rbgmatrix))
     
     print(paste0(i, ".pdf"))

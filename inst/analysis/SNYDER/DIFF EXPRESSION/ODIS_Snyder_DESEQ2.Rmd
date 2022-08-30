@@ -20,6 +20,25 @@ snyder_readcounts <- full_Snyder$ex
 #row.names(snyder_readcounts) <- full_Snyder$featInfo$ENSEMBL
 ```
 
+Create FeatInfo so that we have all types of GeneIDs
+```{r}
+library(biomaRt)
+
+SnyderMouseGenes <- full_Snyder$featInfo$ENSEMBL
+tmp_snyder <- MouseENS2MouseENT(SnyderMouseGenes)
+head(tmp_snyder)
+#tmp_snyder <- lapply(tmp_snyder,as.character)
+summary(tmp_snyder)
+head(tmp_snyder)
+str(tmp_snyder)
+tmp_snyder <- as.data.frame(tmp_snyder)
+
+full_Snyder$featInfo <- as.data.frame(full_Snyder$featInfo)
+full_Snyder$featInfo <- merge(full_Snyder$featInfo, tmp_snyder)
+summary(full_Snyder$featInfo)
+head(full_Snyder$featInfo)
+```
+
 #DESEQ2 
 ```{r}
 
