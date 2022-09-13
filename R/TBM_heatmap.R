@@ -27,10 +27,52 @@ i <- names(gsea_results[[1]][9])
 ###
 TB.Heatmap <- function(gsea_results){
   
+  library(ggplot2)
+  library(DescTools)
+  
   #define distance function for clustering
-  distfun =  function(x) { 
+  distfun <-  function(x) { 
     d <- (1-cor(t(x)))
     return(as.dist(d))}
+  
+  
+  HSV.ROW.distfun <- function(x,weight) {
+    # figure the color for that row
+    averageHue <- numeric(0)
+    for( l in 1:(dim(x)[1])){
+      thisrow <- x[l,]
+      h.x <- cos(thisrow*2*pi)
+      h.y <- sin(thisrow*2*pi)
+      h <- complex(real = h.x , imaginary = h.y)
+      h.mean <- mean(h,na.rm = TRUE)
+      rads <- Arg(h.mean)
+      if(rads<0){rads <- rads + 2*pi}
+      averageHue[l] <- rads/(2*pi)
+    }
+    h.x <- cos(averageHue*2*pi)
+    h.y <- sin(averageHue*2*pi)
+    h.coords <- cbind(h.x,h.y)
+    #print('h coordinates')
+    #print(head(h.coords))
+    d <- as.matrix(dist(h.coords)) #figure out color in hue space and take difference between them (delta)
+    #print('str of d')
+    #print(str(d))
+    #figure how many genes overlap row-to-row #this is where the bug is, calculating set overlap is slightly wrong
+    overlap <- (1-is.na(x))%*%t(1-is.na(x))
+    o.diag <- diag(overlap)
+    o.square <- sqrt(o.diag%*%t(o.diag))
+    overlap <- 1-(overlap/o.square)
+    #print("pritning overlap dist")
+    #print(overlap)
+    #combine these two metrics
+    #print('d matrix')
+    #print(d[1:5,1:5])
+    #print('overlap matrix')
+    #print(overlap[1:5,1:5])
+    #add distance overlap and color overlap (instead of multiply?????)
+    newdist <- weight*d+overlap
+    return(as.dist(newdist))
+  }
   
   #initiate list of plots
   plots <- list()
@@ -173,7 +215,8 @@ TB.Heatmap <- function(gsea_results){
     print('head of rbgmatrix')
     print(head(rbgmatrix))
     
-    ###make shadow hsv matrix that looks like rgbmatrix but instead of #000000 it has hsv.h value, so that we can cluster by color
+    ### make shadow hsv matrix that looks like rgbmatrix but instead of #000000
+    ### it has hsv.h value, so that we can cluster by color
     hsvmatrix <- matrix(data = 0,
                         ncol = length(colnames(theBigMatrix)), 
                         nrow = length(rownames(theBigMatrix))) 
@@ -181,7 +224,6 @@ TB.Heatmap <- function(gsea_results){
     colnames(hsvmatrix) = colnames(theBigMatrix) 
     rownames(hsvmatrix) = rownames(theBigMatrix) 
     
-    library(DescTools)
     print("HSV matrix initialized")
     
     for(setID in 1:nrow(theBigMatrix)){ 
@@ -214,52 +256,42 @@ TB.Heatmap <- function(gsea_results){
     
     ### clustering hsv matrix based on both color and pathway membership
     if (nrow(hsvmatrix) > 2) {
-      HSV.ROW.distfun <- function(x,weight) {
-        # figure the color for that row
-        averageHue <- rowMeans(x,na.rm=TRUE)
-        h.x <- cos(averageHue*2*pi)
-        h.y <- sin(averageHue*2*pi)
-        h.coords <- cbind(h.x,h.y)
-        print('h coordinates')
-        print(head(h.coords))
-        d <- as.matrix(dist(h.coords)) #figure out color in hue space and take difference between them (delta)
-        print('str of d')
-        print(str(d))
-        #figure how many genes overlap row-to-row #this is where the bug is, calculating set overlap is slightly wrong
-        overlap <- (1-is.na(x))%*%t(1-is.na(x))
-        o.diag <- diag(overlap)
-        o.square <- sqrt(o.diag%*%t(o.diag))
-        overlap <- 1-(overlap/o.square)
-        #combine these two metrics
-        #print('d matrix')
-        #print(d[1:5,1:5])
-        #print('overlap matrix')
-        #print(overlap[1:5,1:5])
-        #add distance overlap and color overlap (instead of multiply?????)
-        newdist <- weight*d+overlap
-        return(as.dist(newdist))
-      }
       
-      rowcluster <- hclust(HSV.ROW.distfun(hsvmatrix,3), method = "median")
-      colcluster <- hclust(HSV.ROW.distfun(t(hsvmatrix),1.5), method = "median")
+      # hsvmatrix should have a TON of NA at this point, and i think it has none
+      print(hsvmatrix[1:6,1:6])
       
+      heatmap((hsvmatrix),Rowv = NA, Colv = NA,main = "before clustering")
       
-      hsvmatrixOrdered <- hsvmatrix[rowcluster$order, colcluster$order] #ordered rows and columns by rowClust$order
-      image(t(hsvmatrixOrdered))
+      rowcluster <- hclust(HSV.ROW.distfun(hsvmatrix,0))
+      colcluster <- hclust(HSV.ROW.distfun(t(hsvmatrix),0))
+      hsvmatrixOrdered <- hsvmatrix[rowcluster$order, colcluster$order]
+      
+      heatmap((hsvmatrix),Rowv =  as.dendrogram(rowcluster), Colv =  as.dendrogram(colcluster),main = "after clustering 0, 0")
+      
+      rowcluster <- hclust(HSV.ROW.distfun(hsvmatrix,99))
+      colcluster <- hclust(HSV.ROW.distfun(t(hsvmatrix),99))
+      hsvmatrixOrdered <- hsvmatrix[rowcluster$order, colcluster$order]
+      
+      heatmap((hsvmatrix),Rowv =  as.dendrogram(rowcluster), Colv =  as.dendrogram(colcluster),main = "after clustering 99, 99")
+      
+      rowcluster <- hclust(HSV.ROW.distfun(hsvmatrix,3))
+      colcluster <- hclust(HSV.ROW.distfun(t(hsvmatrix),1.5))
+      hsvmatrixOrdered <- hsvmatrix[rowcluster$order, colcluster$order]
+      
+      #ordered rows and columns by rowClust$order
+      heatmap((hsvmatrix),Rowv = as.dendrogram(rowcluster), Colv =  as.dendrogram(colcluster),main = "after clustering 3, 1.5")
+      
       plot(rowcluster)
       plot(colcluster)
-    } else { next
-      #hsvmatrixOrdered <- hsvmatrix
+    } else { 
+      warning("not enough to cluster")
+      next
     }
     print('hsvmatrixordered')
     print(str(hsvmatrixOrdered))
     
     #order rbgmatrix rows by hsvmatrixordered rows
-    rbgmatrix <- rbgmatrix[rownames(hsvmatrixOrdered),,drop=FALSE]
-    
-    #order rbgmatrix columns by hsvmatrixordered columns
-    rbgmatrix <- rbgmatrix[, colnames(hsvmatrixOrdered)]
-    
+    rbgmatrix <- rbgmatrix[rownames(hsvmatrixOrdered),colnames(hsvmatrixOrdered),drop=FALSE]
     
     #make tall table of x, y, color for ggplot, use plotly 
     tallmatrix <- as.character(rbgmatrix)
@@ -267,7 +299,6 @@ TB.Heatmap <- function(gsea_results){
                              x = rep(1:dim(rbgmatrix)[2], each = dim(rbgmatrix)[1]),
                              y = rep(1:dim(rbgmatrix)[1], times = dim(rbgmatrix)[2]),
                              stringsAsFactors = F)
-    
     
     xlabels <- c(colnames(rbgmatrix))
     xlabels <- MouseENT2MouseSYM(xlabels) #add symbols here instead of before
@@ -280,11 +311,10 @@ TB.Heatmap <- function(gsea_results){
         width = ncol(rbgmatrix),
         height= nrow(rbgmatrix))
     
-    library(ggplot2)
     
     plots[[i]] <- ggplot(tallmatrix) +
       geom_raster(aes(x = x,
-                      y= y,
+                      y = y,
                       fill = data)) +
       scale_fill_identity() +
       scale_y_continuous(labels = ylabels, breaks = 1:length(ylabels)) +

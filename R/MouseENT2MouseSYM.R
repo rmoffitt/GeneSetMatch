@@ -13,6 +13,9 @@
 #' Symbols <- MouseENT2MouseSYM(MouseGenes)
 
 MouseENT2MouseSYM <- function(MouseGenes){
+  library(clusterProfiler)
+  library(msigdbr)
+  library(org.Mm.eg.db)
   Symbols <- bitr(MouseGenes, fromType = "ENTREZID",
                                 toType = c("SYMBOL"),
                                 OrgDb = org.Mm.eg.db)
