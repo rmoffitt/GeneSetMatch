@@ -24,8 +24,7 @@ res_nmf_llb_sym <- readRDS("./LLB_NMF_GSEA_SYM.rds")
 res_nmf_llb <- readRDS("./LLB_NMF_GSEA.rds")
 res_nmf_tfpm <- readRDS("./LLB_NMF_GSEA_TFPM.rds")
 
-gsea_results <- res_nmf_cell
-
+gsea_results <- res_nmf_tfpm
 
 i <- names(gsea_results[[3]][10])
 
@@ -36,6 +35,44 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
   distfun =  function(x) { 
     d <- (1-cor(t(x)))
     return(as.dist(d))}
+  
+  HSV.ROW.distfun <- function(x,weight) {
+    # figure the color for that row
+    averageHue <- numeric(0)
+    for( l in 1:(dim(x)[1])){
+      thisrow <- x[l,]
+      h.x <- cos(thisrow*2*pi)
+      h.y <- sin(thisrow*2*pi)
+      h <- complex(real = h.x , imaginary = h.y)
+      h.mean <- mean(h,na.rm = TRUE)
+      rads <- Arg(h.mean)
+      if(rads<0){rads <- rads + 2*pi}
+      averageHue[l] <- rads/(2*pi)
+    }
+    h.x <- cos(averageHue*2*pi)
+    h.y <- sin(averageHue*2*pi)
+    h.coords <- cbind(h.x,h.y)
+    #print('h coordinates')
+    #print(head(h.coords))
+    d <- as.matrix(dist(h.coords)) #figure out color in hue space and take difference between them (delta)
+    #print('str of d')
+    #print(str(d))
+    #figure how many genes overlap row-to-row #this is where the bug is, calculating set overlap is slightly wrong
+    overlap <- (1-is.na(x))%*%t(1-is.na(x))
+    o.diag <- diag(overlap)
+    o.square <- sqrt(o.diag%*%t(o.diag))
+    overlap <- 1-(overlap/o.square)
+    #print("pritning overlap dist")
+    #print(overlap)
+    #combine these two metrics
+    #print('d matrix')
+    #print(d[1:5,1:5])
+    #print('overlap matrix')
+    #print(overlap[1:5,1:5])
+    #add distance overlap and color overlap (instead of multiply?????)
+    newdist <- weight*d+overlap
+    return(as.dist(newdist))
+  }
   
   #initiate list of plots
   plots <- list()
@@ -211,51 +248,27 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     
     ### clustering hsv matrix based on both color and pathway membership
     if (nrow(hsvmatrix) > 2) {
-      HSV.ROW.distfun <- function(x,weight) {
-      # figure the color for that row
-      averageHue <- rowMeans(x,na.rm=TRUE)
-      h.x <- cos(averageHue*2*pi)
-      h.y <- sin(averageHue*2*pi)
-      h.coords <- cbind(h.x,h.y)
-      print('h coordinates')
-      print(head(h.coords))
-      d <- as.matrix(dist(h.coords)) #figure out color in hue space and take difference between them (delta)
-      print('str of d')
-      print(str(d))
-      #figure how many genes overlap row-to-row
-      overlap <- (1-is.na(x))%*%t(1-is.na(x))
-      o.diag <- diag(overlap)
-      o.square <- sqrt(o.diag%*%t(o.diag))
-      overlap <- 1-(overlap/o.square)
-      #combine these two metrics
-      #print('d matrix')
-      #print(d[1:5,1:5])
-      #print('overlap matrix')
-      #print(overlap[1:5,1:5])
-      #add distance overlap and color overlap (instead of multiply?????)
-      newdist <- weight*d+overlap
-      return(as.dist(newdist))
-    }
-
-      rowcluster <- hclust(HSV.ROW.distfun(hsvmatrix,3))
-      colcluster <- hclust(HSV.ROW.distfun(t(hsvmatrix),1.5))
       
+      print(hsvmatrix[1:6,1:6])
+      heatmap((hsvmatrix),Rowv = NA, Colv = NA,main = "before clustering")
       
+      rowcluster <- hclust(HSV.ROW.distfun(hsvmatrix,10))
+      colcluster <- hclust(HSV.ROW.distfun(t(hsvmatrix),10))
       hsvmatrixOrdered <- hsvmatrix[rowcluster$order, colcluster$order] #ordered rows and columns by rowClust$order
-      image(t(hsvmatrixOrdered))
+      
+      heatmap((hsvmatrix),Rowv = as.dendrogram(rowcluster), Colv =  as.dendrogram(colcluster),main = "after clustering 3, 1.5")
+      
       plot(rowcluster)
       plot(colcluster)
-    } else { next
-      #hsvmatrixOrdered <- hsvmatrix
+    } else { 
+      warning("not enough to cluster")
+      next
     }
     print('hsvmatrixordered')
     print(str(hsvmatrixOrdered))
     
     #order rbgmatrix rows by hsvmatrixordered rows
-    rbgmatrix <- rbgmatrix[rownames(hsvmatrixOrdered),,drop=FALSE]
-    
-    #order rbgmatrix columns by hsvmatrixordered columns
-    rbgmatrix <- rbgmatrix[, colnames(hsvmatrixOrdered)]
+    rbgmatrix <- rbgmatrix[rownames(hsvmatrixOrdered),colnames(hsvmatrixOrdered),drop=FALSE]
     
     
     #make tall table of x, y, color for ggplot, use plotly 
@@ -267,7 +280,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     
     
     xlabels <- c(colnames(rbgmatrix))
-    xlabels <- MouseENT2MouseSYM(xlabels) #add symbols here instead of before
+    xlabels <- RatENT2RatSYM(xlabels) #add symbols here instead of before
     ylabels <- c(rownames(rbgmatrix))
     
     print(paste0(i, ".pdf"))
