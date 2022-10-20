@@ -76,12 +76,10 @@ head(df2)
 ```
 
 
-GSEA on all three vectors of NMF +orig values
+GSEA on all three vectors of NMF +orig values 
 ```{r}
 
 LLB_NMF_GSEA_TFPM <- list()
-
-
 
 ## Both of the following lists have naming convention "v1","v2", etc, so you can index them in a single for loop by assigning the loop variable as the character string.
 
@@ -111,11 +109,14 @@ for(Y in c("V1","V2","V3") #drop = f MEANS KEEP IT AS A MATRIX WITH COLLUMNS AND
     ## Make vector sorted gene list of raw nmf scores
     Z <- Q[[Y]]
     orig_value = Z[,1]
-    orig_value = sort(orig_value, decreasing = TRUE)
     orig_value = orig_value[!duplicated(names(orig_value))]
+    orig_value <- orig_value[match(names(gene_list), names(orig_value))] #SORTED BASED ON GENE_LIST TO MAINTAIN ORDER
     print("head orig_value")
     head(orig_value, n = 5)
     
+    head(names(gene_list),n=5)
+    
+    print(" Are these three things ^^ sorted the same way ??!?!?!?!?!?")
     
     
     for(i in list_of_gmt_files){
@@ -126,10 +127,12 @@ for(Y in c("V1","V2","V3") #drop = f MEANS KEEP IT AS A MATRIX WITH COLLUMNS AND
     #orig_matrix must be a data frame
     LLB_NMF_GSEA_TFPM[[Y]]$orig_matrix <- as.data.frame(list(log2FoldChange = orig_value,
                                                                     EnrichmentScore = gene_list,
-                                                                    ENTREZID = row.names(X),
-                                                                    SYMBOL = RatENT2RatSYM(row.names(X)))) #rat conversion function returns some NA's 
+                                                                    ENTREZID = names(gene_list),
+                                                                    SYMBOL = RatENT2RatSYM(names(gene_list)))) #rat conversion function returns some NA's 
     
-  }
+}
+
+#this^^ is out of order. orix matrix overwrites any collected GSEA reults and then a random data frame gets constructed from irrelevant garbage
 
 summary(LLB_NMF_GSEA_TFPM)
 summary(LLB_NMF_GSEA_TFPM$V1)
@@ -137,6 +140,6 @@ summary(LLB_NMF_GSEA_TFPM$V1$orig_matrix)
 head(LLB_NMF_GSEA_TFPM$V3$`./myC1.gmt`$Results)
 str(LLB_NMF_GSEA_TFPM$V2$orig_matrix$log2FoldChange)
 
-saveRDS(LLB_NMF_GSEA_TFPM, "./LLB_NMF_GSEA_TFPM.rds")
+saveRDS(LLB_NMF_GSEA_TFPM, "./LLB_NMF_GSEA_TFPM_NEW.rds")
 
 ```
