@@ -20,16 +20,20 @@
 # res_nmf <- readRDS("./Snyder_NMF_V123.rds")
 res_nmf_org <- readRDS("./Snyder_NMF_ORG_GSEA.rds")
 res_nmf_cell <- readRDS("./Snyder_NMF_CELL_GSEA.rds")
-res_nmf_llb_sym <- readRDS("./LLB_NMF_GSEA_SYM.rds")
-res_nmf_llb <- readRDS("./LLB_NMF_GSEA.rds")
+#res_nmf_llb_sym <- readRDS("./LLB_NMF_GSEA_SYM.rds")
+#res_nmf_llb <- readRDS("./LLB_NMF_GSEA.rds")
 res_nmf_tfpm <- readRDS("./LLB_NMF_GSEA_TFPM.rds")
+res_llb_new_order <- readRDS("./LLB_NMF_GSEA_TFPM_NEW.rds")
 
-gsea_results <- res_nmf_tfpm
+gsea_results <- res_llb_new_order
 
 i <- names(gsea_results[[3]][10])
 
 ###
 ODIS.Multilevel.Heatmaps <- function(gsea_results){
+  
+  library(ggplot2)
+  library(DescTools)
   
   #define distance function for clustering
   distfun =  function(x) { 
@@ -99,7 +103,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         }
         theseResults <- theseResults[1:min(60, nrow(theseResults)),] #Selects up to top 30 enriched pathways and their stats by normalized enrichment score
         theEdge = unique(unlist(theseResults$leadingEdge)) #Takes all the leading edge genes from theseResults
-        theTopGenes = theEdge[order(match(theEdge, orig_matrix$ENTREZID))][1:min(60, length(theEdge))] #Returns the row index of theEdge vs orig_matrix, which is sorted by log2FoldChange (decreasing)
+        theTopGenes = theEdge[order(match(theEdge, orig_matrix$ENTREZID))][1:min(90, length(theEdge))] #Returns the row index of theEdge vs orig_matrix, which is sorted by log2FoldChange (decreasing)
         #print('theTopGenes:')
         #print(length(theTopGenes)) #checks length, should be 30
         agg_leading_edge = orig_matrix[orig_matrix$ENTREZID %in% theTopGenes,c("log2FoldChange","ENTREZID", "SYMBOL")] # ", SYMBOL" Takes the genes corresponding to the index of theTopGenes
@@ -219,7 +223,6 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     colnames(hsvmatrix) = colnames(theBigMatrix) 
     rownames(hsvmatrix) = rownames(theBigMatrix) 
     
-    library(DescTools)
     print("HSV matrix initialized")
     
     for(setID in 1:nrow(theBigMatrix)){ 
@@ -252,8 +255,8 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
       print(hsvmatrix[1:6,1:6])
       heatmap((hsvmatrix),Rowv = NA, Colv = NA,main = "before clustering")
       
-      rowcluster <- hclust(HSV.ROW.distfun(hsvmatrix,10))
-      colcluster <- hclust(HSV.ROW.distfun(t(hsvmatrix),10))
+      rowcluster <- hclust(HSV.ROW.distfun(hsvmatrix,3))
+      colcluster <- hclust(HSV.ROW.distfun(t(hsvmatrix),1.5))
       hsvmatrixOrdered <- hsvmatrix[rowcluster$order, colcluster$order] #ordered rows and columns by rowClust$order
       
       heatmap((hsvmatrix),Rowv = as.dendrogram(rowcluster), Colv =  as.dendrogram(colcluster),main = "after clustering 3, 1.5")
