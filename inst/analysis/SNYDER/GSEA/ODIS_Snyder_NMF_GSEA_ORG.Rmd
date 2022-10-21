@@ -99,8 +99,8 @@ for(Y in c("V1","V2","V3") #drop = f MEANS KEEP IT AS A MATRIX WITH COLLUMNS AND
     ## Make vector sorted gene list of raw nmf scores
     Z <- Q[[Y]]
     orig_value = Z[,1]
-    orig_value = sort(orig_value, decreasing = TRUE)
     orig_value = orig_value[!duplicated(names(orig_value))]
+    orig_value <- orig_value[match(names(gene_list), names(orig_value))] #SORTED BASED ON GENE_LIST TO MAINTAIN ORDER
     print("head orig_value")
     head(orig_value, n = 5)
   
@@ -112,8 +112,8 @@ for(Y in c("V1","V2","V3") #drop = f MEANS KEEP IT AS A MATRIX WITH COLLUMNS AND
   #orig_matrix must be a data frame, added conversion function for ENT to SYM
   snyder_nmfs_org[[Y]]$orig_matrix <- as.data.frame(list(log2FoldChange = orig_value,
                                                          EnrichmentScore = gene_list,
-                                                            ENTREZID = row.names(X), 
-                                                            SYMBOL = MouseENT2MouseSYM(row.names(X)))) 
+                                                            ENTREZID = names(gene_list), 
+                                                            SYMBOL = MouseENT2MouseSYM(names(gene_list)))) 
   
 }
 
@@ -123,5 +123,5 @@ summary(snyder_nmfs_org$V2$orig_matrix)
 head(snyder_nmfs_org$V1$`./myC1.gmt`$Results)
 str(snyder_nmfs_org$V2$orig_matrix$log2FoldChange)
 
-saveRDS(snyder_nmfs_org, "./Snyder_NMF_ORG_GSEA.rds")
+saveRDS(snyder_nmfs_org, "./Snyder_NMF_ORG_GSEA_NEW.rds")
 ```
