@@ -18,16 +18,17 @@
 
 ##DATA OF CHOICE
 # res_nmf <- readRDS("./Snyder_NMF_V123.rds")
-res_nmf_org <- readRDS("./Snyder_NMF_ORG_GSEA.rds")
-res_nmf_cell <- readRDS("./Snyder_NMF_CELL_GSEA.rds")
+snyder_nmf_org <- readRDS("./Snyder_NMF_ORG_GSEA_NEW.rds")
+#res_nmf_cell <- readRDS("./Snyder_NMF_CELL_GSEA.rds")
 #res_nmf_llb_sym <- readRDS("./LLB_NMF_GSEA_SYM.rds")
 #res_nmf_llb <- readRDS("./LLB_NMF_GSEA.rds")
-res_nmf_tfpm <- readRDS("./LLB_NMF_GSEA_TFPM.rds")
-res_llb_new_order <- readRDS("./LLB_NMF_GSEA_TFPM_NEW.rds")
+#res_nmf_tfpm <- readRDS("./LLB_NMF_GSEA_TFPM.rds")
+llb_new_order <- readRDS("./LLB_NMF_GSEA_TFPM_NEW.rds")
+llb_new_pval <- readRDS("./LLB_NMF_GSEA_TFPM_NEW_0.1p.rds")
 
-gsea_results <- res_llb_new_order
+gsea_results <- llb_new_pval
 
-i <- names(gsea_results[[3]][10])
+i <- names(gsea_results[[3]][9])
 
 ###
 ODIS.Multilevel.Heatmaps <- function(gsea_results){
@@ -97,11 +98,15 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         
         orig_matrix = gsea_results[[k]]$orig_matrix #pull out and separate for appropriate k every time
         theseResults <- gsea_results[[k]][[i]]$Results
+        theseResults <- theseResults[theseResults$ES > 0,] #because nmf only returns positives, we dont want negative enrichment scores.
+        #write a if, next loop that throws out the garbage (if there is no pathways, don't draw plot)
         if (is.na(theseResults[1,1]) == T) {
           print("These results are EMPTY!!!")
           next
         }
-        theseResults <- theseResults[1:min(60, nrow(theseResults)),] #Selects up to top 30 enriched pathways and their stats by normalized enrichment score
+        theseResults <- theseResults[1:min(9, nrow(theseResults)),]
+        print("these results")
+        print(head(theseResults))#Selects up to top 30 enriched pathways and their stats by normalized enrichment score
         theEdge = unique(unlist(theseResults$leadingEdge)) #Takes all the leading edge genes from theseResults
         theTopGenes = theEdge[order(match(theEdge, orig_matrix$ENTREZID))][1:min(90, length(theEdge))] #Returns the row index of theEdge vs orig_matrix, which is sorted by log2FoldChange (decreasing)
         #print('theTopGenes:')
@@ -112,6 +117,10 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         #print('theseResults$pathway:')
         #print(str(theseResults$pathway)) #checks dim of agg_leading_edge, should be 30 x 2
         #make a small matrix of agg_leading_edge and theseResults$pathways for each k
+        if (length(theseResults$pathway) < 1){
+          next
+        }
+        
         theMatrix <- matrix(data = 1,
                             byrow = T,
                             nrow = length(theseResults$pathway),
@@ -119,6 +128,10 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         
         print(dim(theMatrix)) #checks dim of theMatrix, should be 30X30 or so
         
+        # if (is.null(dim(theMatrix == T))) { #trying to skip plotting empty marices
+        #   print("Not enough to plot")
+        #   next
+        # }
         rownames(theMatrix) <- theseResults$pathway #assign rownames (pathways)
         colnames(theMatrix) <- agg_leading_edge$ENTREZID #assign colnames (genes) #SYMBOL
         
@@ -155,6 +168,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
         if(typeof(theBigMatrix)=="list"){
           #first iteration
           theBigMatrix <- theMatrix
+          
         }else{
           theBigMatrix <- merge(theBigMatrix,theMatrix,by = "row.names",all=TRUE)
           rownames(theBigMatrix) <- theBigMatrix$Row.names #adding pathway names into row names
@@ -171,12 +185,24 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
             theBigMatrix = theBigMatrix[, -indX[2]] #remove the .y column
             colnames(theBigMatrix)[indX[1]] = z #remove the .x by replacing it with original z
           }
+          
         }
-        
-        print('theBigMatrix at end of loop:')
-        print(str(theBigMatrix))
       }
+      
+      print('theBigMatrix at end of loop:')
+      print(str(theBigMatrix))
+      print('dimensions of theBigMatrix')
+      print(dim(theBigMatrix))
+      
+      
     }
+    if (is.null(dim(theBigMatrix == T))) { #trying to skip plotting empty marices
+         print("Not enough to plot")
+         next
+      }
+    
+  #}
+  
     
     print('k is done looping over V1, V2 etc. . . ')
     print('the matrix of genes and genesets has been constructed:')
@@ -308,7 +334,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     
     print(plots[[i]])
     dev.off()
-  }
+    }
   
   return(filelist)
 }

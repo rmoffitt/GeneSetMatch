@@ -121,7 +121,7 @@ for(Y in c("V1","V2","V3") #drop = f MEANS KEEP IT AS A MATRIX WITH COLLUMNS AND
     
     for(i in list_of_gmt_files){
       print(i)
-      res <- ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.05)
+      res <- ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.1) #drop to 0.1
       LLB_NMF_GSEA_TFPM[[Y]][[i]] <- res  ## find a way to reference "nmf_norm" and "nmf_norm_org"
     }
     #orig_matrix must be a data frame
@@ -140,6 +140,6 @@ summary(LLB_NMF_GSEA_TFPM$V1$orig_matrix)
 head(LLB_NMF_GSEA_TFPM$V3$`./myC1.gmt`$Results)
 str(LLB_NMF_GSEA_TFPM$V2$orig_matrix$log2FoldChange)
 
-saveRDS(LLB_NMF_GSEA_TFPM, "./LLB_NMF_GSEA_TFPM_NEW.rds")
+saveRDS(LLB_NMF_GSEA_TFPM, "./LLB_NMF_GSEA_TFPM_NEW_0.1p.rds")
 
 ```
