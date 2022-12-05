@@ -15,7 +15,7 @@
 #' @examples 
 #' res <- ODIS::ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.05)
 
-ODISGSEA = function(gene_list, theGoFile, pval, verbose = TRUE) {
+ODISGSEA = function(gene_list, theGoFile, pval, verbose = TRUE, onlypos = FALSE) {
   set.seed(54321)
   library(dplyr)
   library(gage)
@@ -50,6 +50,12 @@ ODISGSEA = function(gene_list, theGoFile, pval, verbose = TRUE) {
   if(verbose){
     print("printing fgRes df")
     print(fgRes)
+  }
+  
+  
+  if (onlypos){
+  fgRes <- fgRes %>% dplyr::filter(ES > 0)
+  fgRes$padj <- p.adjust(p = fgRes$pval, method = "BH") #correction is less harsh, migh pick up more enriched gene sets (dropped anyting that goes in the neative direction by adding onlypos lfag)
   }
   
   fgRes <- fgRes %>% dplyr::filter(padj < !!pval)
