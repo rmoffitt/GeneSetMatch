@@ -26,7 +26,9 @@ snyder_nmf_org <- readRDS("./Snyder_NMF_ORG_GSEA_NEW.rds")
 llb_new_order <- readRDS("./LLB_NMF_GSEA_TFPM_NEW.rds")
 llb_new_pval <- readRDS("./LLB_NMF_GSEA_TFPM_NEW_0.1p.rds")
 
-gsea_results <- llb_new_pval
+tab_mur <- readRDS("./TBM_GSEA_New.rds")
+
+gsea_results <- tab_mur
 
 i <- names(gsea_results[[3]][9])
 
@@ -104,7 +106,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
           print("These results are EMPTY!!!")
           next
         }
-        theseResults <- theseResults[1:min(9, nrow(theseResults)),]
+        theseResults <- theseResults[1:min(90, nrow(theseResults)),]
         print("these results")
         print(head(theseResults))#Selects up to top 30 enriched pathways and their stats by normalized enrichment score
         theEdge = unique(unlist(theseResults$leadingEdge)) #Takes all the leading edge genes from theseResults
@@ -309,7 +311,7 @@ ODIS.Multilevel.Heatmaps <- function(gsea_results){
     
     
     xlabels <- c(colnames(rbgmatrix))
-    xlabels <- RatENT2RatSYM(xlabels) #add symbols here instead of before
+    xlabels <- MouseENT2MouseSYM(xlabels) #add symbols here instead of before
     ylabels <- c(rownames(rbgmatrix))
     
     print(paste0(i, ".pdf"))

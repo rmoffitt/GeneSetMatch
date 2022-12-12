@@ -1,0 +1,230 @@
+---
+title: "TBM_sc_GSEA.Rmd"
+author: "Lucie Chrastecka"
+date: '2022-07-26'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+Package Library
+```{r}
+library(BBmisc) #for normalize
+library(msigdbr)
+library(clusterProfiler)
+library(AnnotationDbi)
+library(org.Rn.eg.db)
+
+```
+
+ALL MY SETS + CONVERSION OF LIST OF SENTS INTO .GMT FILES
+```{r}
+C1_df = msigdbr(species = "Mus musculus", category = "C1", subcategory = "")
+C2_df = msigdbr(species = "Mus musculus", category = "C2", subcategory = "CGP")
+C2KEGG_df = msigdbr(species = "Mus musculus", category = "C2", subcategory = "CP:KEGG")
+C3_df = msigdbr(species = "Mus musculus", category = "C3", subcategory = "MIR:MIRDB")
+C4_df = msigdbr(species = "Mus musculus", category = "C4", subcategory = "CGN")
+C5_df = msigdbr(species = "Mus musculus", category = "C5", subcategory = "BP")
+C6_df = msigdbr(species = "Mus musculus", category = "C6", subcategory = "")
+C7_df = msigdbr(species = "Mus musculus", category = "C7", subcategory = "IMMUNESIGDB")
+C8_df = msigdbr(species = "Mus musculus", category = "C8", subcategory = "") #update on all
+Hall_df = msigdbr(species = "Mus musculus", category = "H", subcategory = "")
+
+list_of_sets = list(C1 = C1_df,
+                    C2 = C2_df,
+                    C2_KEGG = C2KEGG_df,
+                    C3 = C3_df,
+                    C4 = C4_df,
+                    C5 = C5_df,
+                    C6 = C6_df,
+                    C7 = C7_df,
+                    C8 = C8_df,
+                    Hall = Hall_df)
+
+list_of_gmt_files <- convert_msigdbr_obj_to_gmt_file(list_of_sets)
+```
+
+Make a matrix of sc LLB Tabula Muris expression Normalized
+```{r}
+TBM <- readRDS("./TabulaMuris_LLB.Rds")
+TBM <- TBM$ex
+TBM$geneID <- MouseSYM2MouseENT(rownames(TBM))
+rownames(TBM) <- NULL
+TBM <- na.omit(TBM)
+head(TBM)
+TBM$ENTREZID <- TBM$geneID
+TBM <- TBM[,-4]
+head(TBM)
+TBM_norm <- BBmisc::normalize(TBM, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")#normalize this to be between 0-1, always must have 1 and 0 in each row
+head(TBM_norm)
+
+saveRDS(TBM_norm, "./TBM_norm.rds")
+
+```
+Make a matrix of sc LLB Tabula Muris expression FAM Max0
+```{r}
+TBM <- readRDS("./TabulaMuris_LLB.Rds")
+Liver <- as.data.frame(TBM$GSEA$max0$hepactocyte$orig_matrix$stat, TBM$GSEA$max0$hepactocyte$orig_matrix$ENTREZID)
+Liver$ENTREZID <- rownames(Liver)
+Liver$Liver <- Liver$`TBM$GSEA$max0$hepactocyte$orig_matrix$stat`
+Liver$`TBM$GSEA$max0$hepactocyte$orig_matrix$stat` <- NULL
+Liver <- Liver[!is.na(Liver$ENTREZID),]
+head(Liver)
+dim(Liver)
+#for each gene that appears more than one time, take the average and keep only one instance
+#remove na's
+
+Lung <- as.data.frame(TBM$GSEA$max0$lung$orig_matrix$stat, TBM$GSEA$max0$lung$orig_matrix$ENTREZID)
+Lung$ENTREZID <- rownames(Lung)
+Lung$Lung <- Lung$`TBM$GSEA$max0$lung$orig_matrix$stat`
+Lung$`TBM$GSEA$max0$lung$orig_matrix$stat` <- NULL
+Lung <- Lung[!is.na(Lung$ENTREZID),]
+head(Lung)
+dim(Lung)
+
+Brain <- as.data.frame(TBM$GSEA$max0$microglia$orig_matrix$stat, TBM$GSEA$max0$microglia$orig_matrix$ENTREZID)
+Brain$ENTREZID <- rownames(Brain)
+Brain$Brain <- Brain$`TBM$GSEA$max0$microglia$orig_matrix$stat`
+Brain$`TBM$GSEA$max0$microglia$orig_matrix$stat` <- NULL
+Brain <- Brain[!is.na(Brain$ENTREZID),]
+head(Brain)
+dim(Brain)
+
+library(base)
+TBM_fam <- merge(Liver, Lung, by = "ENTREZID", all = FALSE)
+TBM_fam <- merge(TBM_fam, Brain, by = "ENTREZID", all = FALSE)
+#TBM_fam <- merge(TBM_fam, Brain)
+head(TBM_fam)
+dim(TBM_fam)
+
+#MEGA MERGE, TO MAKE SURE BOTH MATRIXES ARE SAME SIZE
+head(TBM_norm)
+head(TBM_fam)
+dim(TBM_norm)
+dim(TBM_fam)
+TBM_all <- merge(TBM_norm, TBM_fam, by = "ENTREZID", all = FALSE)
+head(TBM_all)
+dim(TBM_all)
+
+saveRDS(TBM_all, "./TBM_all.rds")
+```
+
+Make matrix of sc LLB tabula Muris expression with FindAllMarkers tranformation
+# ```{r}
+# library(Seurat)
+# tiss <- CreateSeuratObject(counts = TabulaMuris_LLB$ex)
+# 
+# TBM_FAM_Liver <- TBM[,1]
+# liver <- UpdateSeuratObject(TBM_FAM_Liver)
+# liver$tissue <- "Liver"
+# liver <- NormalizeData(liver)
+# hepatocytes <- subset(liver, subset = cell_ontology_class == "hepatocyte")
+# 
+# TBM_FAM_Lung <- TBM[,2]
+# lung <- UpdateSeuratObject(tiss)
+# lung$tissue <- "Lung"
+# lung <- NormalizeData(lung)
+# endothelia <- subset(lung, subset = cell_ontology_class == "lung endothelial cell")
+# 
+# TBM_FAM_Brain <- TBM[,3]
+# brain <- UpdateSeuratObject(tiss)
+# brain$tissue <- "brain"
+# brain <- NormalizeData(brain)
+# microglia <- subset(brain, subset = cell_ontology_class == "microglial cell")
+# rm(tiss)
+# 
+# all <- merge(hepatocytes, c(endothelia, microglia), merge.data = TRUE)
+# rm(hepatocytes, liver, endothelia, lung, brain, microglia)
+# gc()
+# ```
+
+
+#GSEA vectors
+```{r}
+TBM_all <- readRDS("./TBM_all.rds") #SEPARATE INTO TWO FOR GSEA, ONE NORMALIZED (FOR COLOR) ONE FAM (FOR GSEA)
+head(TBM_all)
+
+TBM_FAM <- TBM_all[,c(1,5:7)]
+TBM_FAM <- data.frame(TBM_FAM, row.names = TBM_FAM[,1])
+TBM_FAM <- TBM_FAM[,-1]
+head(TBM_FAM)
+TBM_FAM <- as.matrix(TBM_FAM)
+head(TBM_FAM)
+typeof(TBM_FAM) #SHOULD BE "DOUBLE"
+
+
+TBM_NORM <- TBM_all[,1:4]
+TBM_NORM <- data.frame(TBM_NORM, row.names = TBM_NORM[,1])
+TBM_NORM <- TBM_NORM[,-1]
+head(TBM_NORM)
+TBM_NORM <- as.matrix(TBM_NORM)
+head(TBM_NORM)
+typeof(TBM_NORM) #SHOULD BE "DOUBLE"
+
+```
+
+GSEA on all three vectors of NMF +orig values
+```{r}
+
+TBM_GSEA <- list()
+
+## Both of the following lists have naming convention "v1","v2", etc, so you can index them in a single for loop by assigning the loop variable as the character string.
+
+## Make list of norm aka raw scores
+Q = list(V1 = TBM_NORM[,1, drop = F],
+         V2 = TBM_NORM[,2, drop = F],
+         V3 = TBM_NORM[,3, drop = F])
+
+
+## make list of tfpm scores.
+new_y = list(V1 = TBM_FAM[,1, drop = F],
+             V2 = TBM_FAM[,2, drop = F],
+             V3 = TBM_FAM[,3, drop = F])
+    
+    
+for(Y in c("V1","V2","V3") #drop = f MEANS KEEP IT AS A MATRIX WITH COLLUMNS AND
+){
+  
+  ## Make vector sorted gene list of TFPM scores
+    X <- new_y[[Y]]
+    gene_list = X[,1]
+    gene_list = sort(gene_list, decreasing = TRUE)
+    gene_list = gene_list[!duplicated(names(gene_list))]
+    print("head gene_list")
+    head(gene_list, n = 5)
+    
+    ## Make vector sorted gene list of raw nmf scores
+    Z <- Q[[Y]]
+    orig_value = Z[,1]
+    orig_value = orig_value[!duplicated(names(orig_value))]
+    orig_value <- orig_value[match(names(gene_list), names(orig_value))] #SORTED BASED ON GENE_LIST TO MAINTAIN ORDER
+    print("head orig_value")
+    head(orig_value, n = 5)
+    
+    head(names(gene_list),n=5)
+    
+    print(" Are these three things ^^ sorted the same way ??!?!?!?!?!?")
+    
+    
+    for(i in list_of_gmt_files){
+      print(i)
+      res <- ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.1, onlypos = TRUE) #drop to 0.1, onlypos is true because NMF
+      TBM_GSEA[[Y]][[i]] <- res  ## find a way to reference "nmf_norm" and "nmf_norm_org"
+    }
+    #orig_matrix must be a data frame
+    TBM_GSEA[[Y]]$orig_matrix <- as.data.frame(list(log2FoldChange = orig_value,
+                                                                    EnrichmentScore = gene_list,
+                                                                    ENTREZID = names(gene_list),
+                                                                    SYMBOL = MouseENT2MouseSYM(names(gene_list)))) #rat conversion function returns some NA's 
+    
+}
+
+summary(TBM_GSEA)
+summary(TBM_GSEA$V1)
+summary(TBM_GSEA$V1$orig_matrix)
+head(TBM_GSEA$V3$`./myC1.gmt`$Results)
+str(TBM_GSEA$V2$orig_matrix$log2FoldChange)
+
+saveRDS(TBM_GSEA, "./TBM_GSEA_New.rds")
+
+```
