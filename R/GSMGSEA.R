@@ -15,7 +15,7 @@
 #' @examples 
 #' res <- ODIS::ODISGSEA(gene_list = gene_list, theGoFile = i, pval = 0.05)
 
-ODISGSEA = function(gene_list, theGoFile, pval, verbose = TRUE, onlypos = FALSE) {
+GSMGSEA = function(gene_list, theGoFile, pval, verbose = TRUE, onlypos = FALSE) {
   set.seed(54321)
   library(dplyr)
   library(gage)
