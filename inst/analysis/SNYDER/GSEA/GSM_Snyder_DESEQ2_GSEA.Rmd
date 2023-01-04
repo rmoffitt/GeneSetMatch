@@ -73,7 +73,7 @@ for(Y in list(list("Snyder_All" = Snyder_DESEQ_matrix),
   
   for(i in list_of_gmt_files){
     print(i)
-    res <- ODISGSEA(gene_list = snyder_gene_list, theGoFile = i, pval = 0.05)
+    res <- GSMGSEA(gene_list = snyder_gene_list, theGoFile = i, pval = 0.05)
     snyder_outputs[[names(Y)]][[i]] <- res ## need to structure outputs correctly
   }
   snyder_outputs[[names(Y)]]$orig_matrix <- X[]  
