@@ -1,4 +1,5 @@
-# This function generates a Hierarchically clustered Multilevel Heatmaps which displays three samples in one concise plot.
+#' FOR DEBUGGING PURPOSES ONLY
+#' This function generates a Hierarchically clustered Multilevel Heatmaps which displays three samples in one concise plot.
 #' This function takes direct GSEA output and transforms it into a unique visualization
 #' @export
 #' @import pdist
@@ -12,8 +13,6 @@
 #' @param gsea_results is the direct output from GSEA function in step immediately prior. There is no need for restructuring, just feed it directly into the function as is. 
 #' @return multi-colored heatmaps displaying 3 experimental conditions/samples/vectors
 #' @examples 
-#' gsea_results is GSEA result
-#' ODIS.Multilevel.Heatmaps(gsea_results)
 
 
 ##DATA OF CHOICE
