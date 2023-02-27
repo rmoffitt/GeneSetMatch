@@ -13,7 +13,7 @@
 #' @param count.dat is the raw count data 
 #' @param conditions is the sample information for DE
 #' @return Results of DE analysis (pval, adjusted pval, logFC, stat)
-#' @examples runQuasiSeq_QL(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status')
+#' @examples runQuasiSeq_QLShrink(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status')
 #' 
 
 

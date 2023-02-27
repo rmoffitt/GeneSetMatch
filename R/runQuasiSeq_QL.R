@@ -16,6 +16,7 @@
 #' @examples runQuasiSeq_QL(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status')
 #' 
 
+
 runQuasiSeq_QL <- function(count.dat, conditions, colors='', path='',specification='')
 {
   require(QuasiSeq)
