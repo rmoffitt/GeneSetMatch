@@ -1,6 +1,6 @@
 # DESeq2
-#' This function takes raw count data and performs Differential Exprssion Analysis of sequence count data basen on negative binomial distribution
-#' #independentFiltering = FALSE, cooksCut = .99 quantile of the F(p, m-p)
+#' This function takes raw count data and performs Differential Expression Analysis of sequence count data based on negative binomial distribution
+#' default: independentFiltering = FALSE, cooksCut = .99 quantile of the F(p, m-p)
 #' @export
 #' @import biomaRt
 #' @import dplyr
@@ -11,7 +11,7 @@
 #' @param count.dat is the raw count data 
 #' @param conditions is the sample information for DE
 #' @return Results of DE analysis (pval, adjusted pval, logFC, avgExpr, stat)
-#' @examples runedgeR_exact(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status')
+#' @examples runDESeq2_indFilterDeactiveCooksOff(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status')
 
 ## independentFiltering = FALSE, cooksCut = OFF
 
