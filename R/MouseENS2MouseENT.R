@@ -1,4 +1,4 @@
-#' Convert mouse ENSEMBLE ID's to mouse ENTREZ ID's + MGI's
+#' Homology Conversion Function convert mouse ENSEMBLE ID's to mouse ENTREZ ID's + MGI's
 #' @export
 #' @import biomaRt
 #' @import data.table

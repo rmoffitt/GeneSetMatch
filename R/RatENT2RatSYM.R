@@ -1,15 +1,15 @@
-#' Convert rat ENTREZID's to rat SYMBOL
+#' Homology Conversion Function converts rat ENTREZID's to rat SYMBOL
 #' @export
 #' @import ClusterProfiler
 #' @import data.table
 #' @import msigdbr
 #' @import org.Rn.eg.db
-#' @param MouseGenes is a vector of rat ENTREZID
+#' @param RatGenes is a vector of rat ENTREZID
 #' @return nothing
 #' @examples 
 #' readcounts <- data$ex
-#' MouseGenes <- data$featInfo$ENTREZ
-#' Symbols <- MouseENT2MouseSYM(MouseGenes)
+#' RatGenes <- data$featInfo$ENTREZ
+#' Symbols <- RatENT2RatSYM(RatGenes)
 
 RatENT2RatSYM <- function(RatGenes){
   library(clusterProfiler)

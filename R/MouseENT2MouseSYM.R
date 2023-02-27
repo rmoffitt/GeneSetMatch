@@ -1,4 +1,4 @@
-#' Convert mouse ENTREZID's to mouse SYMBOL
+#' Homology Conversion Function converts mouse ENTREZID's to mouse SYMBOL
 #' @export
 #' @import ClusterProfiler
 #' @import data.table

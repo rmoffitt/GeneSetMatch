@@ -1,4 +1,4 @@
-#' Convert mouse ENSEMBLE ID's to human ENTREZ ID'd + HGNC and MGI's
+#' Homology Conversion Function converts mouse ENSEMBLE ID's to human ENTREZ ID'd + HGNC and MGI's
 #' @export
 #' @import biomaRt
 #' @import org.Hs.eg.db
