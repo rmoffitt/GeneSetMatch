@@ -1,4 +1,4 @@
-#' Modified GSEA function, this function performs fgsea on the results of previous Differential Expression analysis, Dimentioal Reductions and/or other appropriate filtering steps.
+#' Modified GSEA function, this function performs fgsea on the results of previous Differential Expression analysis, Dimensional Reductions and/or other appropriate filtering steps.
 #' @export
 #' @import qusage
 #' @import dplyr
