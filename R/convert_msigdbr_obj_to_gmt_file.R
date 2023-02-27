@@ -1,4 +1,4 @@
-#' This Function writes a gmt file.
+#' This Function writes a .gmt file for the GSEA protocol
 #' @export
 #' @import dplyr
 #' @import data.table
