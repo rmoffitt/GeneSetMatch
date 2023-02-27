@@ -1,5 +1,5 @@
 # NOISeq
-#' This function performs analysis on RNA-seq expression data or other similar kind of data. Exploratory plots to evualuate saturation, count distribution, expression per chromosome, type of detected features, features length, etc. Differential expression between two experimental conditions with no parametric assumptions.
+#' This function performs analysis on RNA-seq expression data or other similar kind of data. Exploratory plots to evaluate saturation, count distribution, expression per chromosome, type of detected features, features length, etc. Differential expression between two experimental conditions with no parametric assumptions.
 #' @export
 #' @import biomaRt
 #' @import dplyr
