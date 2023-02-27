@@ -1,12 +1,12 @@
-# GENE VS GENE SET HEATMAPS
-#' This function takes direct GSEA output and transforms it into hierarchically clustered gene vs gene set heatmaps
+# GENE VS GENE SET HEATMAPS intended for visualization of Differential Expression Analysis of 2 samples.
+#' This function takes direct GSMGSEA output and transforms it into hierarchically clustered gene vs gene set heatmaps
 #' @export
 #' @import pdist
 #' @param gsea_results is the direct output from GSEA function in step immediately prior. There is no need for restructuring, just feed it directly into the function as is. 
 #' @return pdf heatmap plots corresponding to each gsea_results$Results 
 #' @examples 
 #' snyder_outputs is GSEA result
-#' ODIS.Heatmaps(snyder_outputs)
+#' GSM.Heatmaps(snyder_outputs)
 
 
 GSM.Heatmaps <- function(gsea_results){
