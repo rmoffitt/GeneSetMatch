@@ -1,4 +1,4 @@
-#This script installes all of the required R packages to run ODIS
+#This script installes all of the required R packages to run GeneSetMatch
 #make the function check if a package is already installed 
 installCran <- function(package_name){
   install.packages(package_name)
@@ -53,6 +53,7 @@ installBioc("enrichplot")
 installBioc("vsn")
 installBioc("apeglm")
 installBioc("org.Hs.eg.db")
+installBioc("org.Rn.eg.db")
 installBioc("org.Mm.eg.db")
 installBioc("ReactomePA")
 installBioc("qusage")
