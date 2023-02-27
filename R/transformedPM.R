@@ -1,13 +1,13 @@
-#' Pattern Markers
+#' Transformed Pattern Markers protocol designed to identify the most highly weighted outputs from NMF, and extract only the genes which strongly associate with a particular pattern, or a linear combination of patterns. 
 #' @export
 #' @import ClusterProfiler
 #' @import data.table
-#' @param W is a matrix with 3 vectors
+#' @param W is a matrix with 3 vectors, the direct un-normalized output of the preceding NMF computation
 #' @return nothing
 #' @examples 
-#' PatternMarker <- LLB_NMF
+#' tpm_LLB_NMF <- transformedPM(LLB_NMF)
 
-PatternMarker <- function(W){
+transformedPM <- function(W){
   normedMatrix <- t(apply(W, 1, function(row) row / max(row)))
   
   unitVector <- function(n, length)
