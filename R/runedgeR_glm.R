@@ -10,7 +10,7 @@
 #' @param count.dat is the raw count data 
 #' @param conditions is the sample information for DE
 #' @return Results of DE analysis (pval, adjusted pval, logFC, avgExpr, rank)
-#' @examples runedgeR_exact(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status')
+#' @examples runedgeR_glm(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status')
 #' 
 
 runedgeR_glm <- function(count.dat, conditions, colors='', path='',specification='')

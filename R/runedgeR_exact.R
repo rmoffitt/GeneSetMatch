@@ -12,6 +12,7 @@
 #' @return Results of DE analysis (pval, adjusted pval, logFC, avgExpr, rank)
 #' @examples runedgeR_exact(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status')
 
+
 runedgeR_exact <- function(count.dat, conditions, colors='', path='',specification='')
 {
   require(edgeR)
