@@ -1,12 +1,14 @@
-Package: ODIS2
+Package: GeneSetMatch
 Type: Package
-Title: What the Package Does (Title Case)
-Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Title: A Software Tool for Dynamic Differential Expression Analysis and Impactful Visualizations of Omics Data and GSEA Outputs 
+Version: 1.0
+Author: Lucie Chrastecka
+Maintainer: Richard A. Moffitt <richard.austin.moffitt@emory.edu>
+Description: GeneSetMatch is a software tool which aims to streamline a variety of statistical analyses for large -omic data sets. GeneSetMatch allows the user to access a menu of appropriate differential expression analyses, dimensionality reductions, transformations and a novel informative visualization of the output in a single, user-friendly software tool.
+    Our novel solution is implemented in the R programming language as a streamlined package that leverages existing statistical packages which were built with different goals in mind. GeneSetMatch is independent of experimental setup and can be used downstream of either common tools for differential expression or genome-wide association, as well as custom rankings.
+    Centrally, we introduce a novel method for visualization of these upstream analyses. Our approach is a clustered heatmap that highlights individual genes in the context of their relevant gene sets. A second version of this heatmap addresses the complexities of visualizing multi-component data, specifically describing the relationship between more than two experimental conditions or tissues. The novel clustering approach groups interesting genes and genesets together, conveying both the magnitude and direction of expressional changes.  The stimulating heatmap displays a high-level view of the degree of redundancy or heterogeneity of the preceding analyses, considering both biological relevance, visual impact and their synonymity.
+    Allowing a significant level of interactivity and plasticity in the individual analytical steps while adhering to gold standard methods makes our tool unique amongst other currently available tools. Offering useful visualizations and reproducible analyses, we aim to aid in discovery, enable efficient interpretations of the experimental results as well as facilitate proper scientific communication and advance further collaborations.
+License: see LICENSE file
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.1
+RoxygenNote: 7.2.1
