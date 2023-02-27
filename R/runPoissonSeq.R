@@ -14,7 +14,6 @@
 #' @examples runPoissonSeq(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status')
 #' 
 
-
 runPoissonSeq <- function(count.dat, conditions, colors='', path='',specification='',cutoff=0)
 {
   require('PoissonSeq')
