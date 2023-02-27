@@ -21,5 +21,5 @@ library(genefilter)
 GENE VS GENE SET HEATMAPS
 ```{r}
 res_snyd <- readRDS("./gsea_snyder_outputs.rds")
-ODIS.Heatmaps(res_snyd)
+GSM.Heatmaps(res_snyd)
 ```
