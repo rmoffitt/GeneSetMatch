@@ -1,11 +1,15 @@
 #This script installes all of the required R packages to run GeneSetMatch
 #make the function check if a package is already installed 
 installCran <- function(package_name){
-  install.packages(package_name)
+  if(!require(package_name,character.only = TRUE)){
+      install.packages(package_name)
+    }
 }
 
 installBioc <- function(package_name){
-  BiocManager::install(package_name)
+  if(!require(package_name,character.only = TRUE)){
+    BiocManager::install(package_name)
+  }
 }
 
 #may need to run this
@@ -28,7 +32,6 @@ installCran("ggpubr")
 installCran("ggrepel")
 installCran("ggraph")
 installCran("gridExtra")
-installCran("heatmap.plus")
 installCran("msigdbr")
 installCran("NMF")
 installCran("pheatmap")
