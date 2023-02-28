@@ -41,6 +41,7 @@ To allow smooth implementation, please parse your input data into the following 
 GeneSetMatch offers an extensive menu of DE methods, all of which can be performed without additional manipulation assuming the input data frames is structured appropriately. Available methods exist in the “All_DE_tools_for_concordance_analysis.R” script and will be automatically loaded in with the build of the GeneSetMatch package. Each DE tool expects the same input to perform its analysis;
 * - count data (i.e ‘full_data$ex’)
 * - biological condition (i.e ‘full_data$sampInfo$condition’).
+
 Each method will return a data frame with gene IDs as row labels and a variety of statistics as column labels. The user has the option to choose whichever statistic is of most interest, perhaps run several DE analyses in parallel and combine the results into a comprehensive matrix. This step allows for significant flexibility, and as long as the resulting data frame is shaped in a ‘gene vs statistic’ matrix, all of the downstream tools will accept the input.  
 
 #### Example code for two DeSEQ2 computations on a bulk RNA-Seq dataset compared by KO status
@@ -52,8 +53,14 @@ Each method will return a data frame with gene IDs as row labels and a variety o
 
 
 ### Dimentional Reduction Analysis
-NMF
-example script (image)
+
+Because bulk RNA-Seq may contain a combination of signals, deconvolution of the data can aid in subtype discovery. Since gene expression data is innately non-negative, non-negative matrix factorization is a compatible choice. Adapted from Brunet et al, we implemented NMF - an unsupervised clustering method which generates a predetermined number of metagenes and metasamples ready for deeper investigation. For purposes of the downstream GSM visualization, the k parameter must be set to 3.
+
+#### Example code for rank = 3 NMF deconvolutionan of a bulk RNA-Seq rat expression matrix
+<img src="images/Example NMF.jpg" width="100%"/>
+
+#### Resulting unmixed matrix
+<img src="images/NMF LLB.jpg" width="100%"/>
 
 
 
