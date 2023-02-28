@@ -1,6 +1,7 @@
 # GeneSetMatch
 
 ## About
+GeneSetMatch is a novel methodology and associated software tool which aims to streamline a variety of statistical analyses for large -omic data sets. GeneSetMatch allows the user to access a menu of appropriate differential expression analyses, dimensionality reductions, transformations and a novel informative visualization of the output in a single, user-friendly software tool.
 
 ## Repository layout
 
@@ -20,11 +21,16 @@ devtools::install_github("rmoffitt/GeneSetMatch")
 
 GeneSetMatch offers a variety of analytical pipelines. The individual workflows will differ slightly based on the input data (bulk vs single-cell), desired statistical analyses (DE vs NMF), preparation of data for pathway enrichemnt step (trasformations & filtering) and subsequent visualization (appropriate heatmap selection). 
 
-<img src="images/GSM Workflow new.jpg" width="80%"/>
+<img src="images/GSM Workflow new.jpg" width="100%"/>
 
 ### Data Structure
 
-<img src="images/tabs.png" width="60%"/>
+To allow smooth implementation, please parse your input data into the following format: a list containing three elements;   a) a numeric matrix of raw expression data where rows are indexed by gene IDs and columns are indexed by experimental samples
+  b) a data frame with information corresponding to all samples, biological replicates, or any other relevant data to the downstream analysis
+  c) a data frame ideally containing ENSEMBL, SYMBOL or ENTREZ IDs which correspond to the indexed gene data in the expression matrix. If some gene IDs types are not available, the GeneSetMatch package offers a variety of conversion functions that aid in interspecies gene ID conversions, as well as animal-model-to-human homologues.
+
+<img src="images/Data Structure.png" width="100%"/>
+
 
 ### Differential Expression Analysis 
 
