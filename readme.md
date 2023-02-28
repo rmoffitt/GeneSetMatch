@@ -38,6 +38,8 @@ To allow smooth implementation, please parse your input data into the following 
 
 ### Differential Expression Analysis 
 
+GeneSetMatch offers an extensive menu of DE methods, all of which can be performed without additional manipulation assuming the input data frames is structured appropriately. Available methods exist in the “All_DE_tools_for_concordance_analysis.R” script and will be automatically loaded in with the build of the GeneSetMatch package. Each DE tool expects the same input to perform its analysis; count data (i.e ‘full_data$ex’) and biological condition (i.e ‘full_data$sampInfo$condition’). Each tool returns a data frame with gene IDs as row labels and a variety of statistics as column labels. The user has the option to choose whichever statistic is of most interest, perhaps run several DE analyses in parallel and combine the results into a comprehensive matrix. This step allows for significant flexibility, and as long as the resulting data frame is shaped in a ‘gene vs statistic’ matrix, all of the downstream tools will accept the input.  
+
 tools for DE (image)
 example script (image)
 
