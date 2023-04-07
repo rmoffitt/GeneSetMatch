@@ -1,0 +1,26 @@
+---
+title: "GSM_Snyder_DESEQ2_Heatmaps"
+author: "Lucie Chrastecka"
+date: "2/18/2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+This markdown uses the output of the GSMGSEA pathway enrichment analysis to generate dual-colored gene vs gene-set heatmaps.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+PACKAGE LIBRARY
+```{r}
+library(gplots)
+library(pdist)
+library(genefilter)
+```
+
+GENE VS GENE SET HEATMAPS
+```{r}
+res_snyd <- readRDS("./gsea_snyder_outputs.rds")
+GSM.Heatmaps(res_snyd)
+```

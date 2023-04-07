@@ -1,0 +1,153 @@
+---
+title: "RunMe.Rmd"
+author: "Lucie Chrastecka"
+date: "2023-03-16"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+#This script will run the entirety of the appropriate steps of GeneSetMatch pipeline for Differential Expression Analysis (DeSeq2, WT vs hn4a status), Pathway Enrichment (GSEA against C2_KEGG and Hallmark MSigDB sets) and heatmap visualization on bulk RNA-Seq mouse data (Snyder). The resulting heatmaps will be printed into the working directory as .pdf files. 
+Assuming all necessary libraries are loaded, the computation should take 10-15 minutes.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+  library(biomaRt)
+  library(pdist)
+  library(gplots)
+  library(msigdbr)
+  library(GeneSetMatch)
+```
+
+#Data loading and parsing
+```{r}
+full_Snyder <- GeneSetMatch::full_Snyder
+  
+  full_Snyder <- full_Snyder 
+  full_Snyder$ex <- as.matrix(full_Snyder$ex)
+  snyder_readcounts <- full_Snyder$ex
+  SnyderMouseGenes <- full_Snyder$featInfo$ENSEMBL
+  tmp_snyder <- GeneSetMatch::MouseENS2MouseENT(SnyderMouseGenes)
+  tmp_snyder <- as.data.frame(tmp_snyder)
+  full_Snyder$featInfo <- as.data.frame(full_Snyder$featInfo)
+  full_Snyder$featInfo <- merge(full_Snyder$featInfo, tmp_snyder)
+  summary(full_Snyder$featInfo)
+  head(full_Snyder$featInfo)
+```
+
+#Differential Expression Analyses
+```{r}
+  deseq_2 <-
+    GeneSetMatch::runDESeq2_indFilterActive(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status`)
+  print(summary(deseq_2))
+  df1 <- as.data.frame(deseq_2$test)
+  df1 <- df1[-c(0, 1, 3:4, 6)]
+  df1 <- tibble::rownames_to_column(df1, "GeneID")
+  colnames(df1)[3] <- "deseq2"
+  
+  deseq_2_cooks_off <-
+    GeneSetMatch::runDESeq2_indFilterDeactiveCooksOff(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status`)
+  print(summary(deseq_2_cooks_off))
+  df2 <- as.data.frame(deseq_2_cooks_off$test)
+  df2 <- df2[-c(0, 1:4)]
+  df2 <- df2[-c(0, 2)]
+  df2 <- tibble::rownames_to_column(df2, "GeneID")
+  colnames(df2)[2] <- "deseq2 cooks off"
+```
+
+ #All Snyder_DESEQ summary table
+```{r}
+  Snyder_DESEQ <- merge(df1, df2, by = "GeneID")
+  names(Snyder_DESEQ)[names(Snyder_DESEQ) == "GeneID"] <- "ENSEMBL"
+  Snyder_DESEQ <- merge(Snyder_DESEQ, full_Snyder$featInfo)
+  head(Snyder_DESEQ)
+```
+
+#Preparing gmt files for GSEA
+```{r}
+  
+  #C1_df = msigdbr(species = "Mus musculus",
+  #                category = "C1",
+                  #subcategory = "")
+  #C2_df = msigdbr(species = "Mus musculus",
+                  #category = "C2",
+   #               subcategory = "CGP")
+  C2KEGG_df = msigdbr(species = "Mus musculus",
+                      category = "C2",
+                      subcategory = "CP:KEGG")
+ # C3_df = msigdbr(species = "Mus musculus",
+                 # category = "C3",
+                 # subcategory = "MIR:MIRDB")
+  #C4_df = msigdbr(species = "Mus musculus",
+                 # category = "C4",
+                  #subcategory = "CGN")
+ # C5_df = msigdbr(species = "Mus musculus",
+                 # category = "C5",
+                  #subcategory = "BP")
+  #C6_df = msigdbr(species = "Mus musculus",
+                  #category = "C6",
+                  #subcategory = "")
+  #C7_df = msigdbr(species = "Mus musculus",
+                  #category = "C7",
+                  #subcategory = "IMMUNESIGDB")
+  #C8_df = msigdbr(species = "Mus musculus",
+                 # category = "C8",
+                 # subcategory = "")
+  Hall_df = msigdbr(species = "Mus musculus",
+                    category = "H",
+                    subcategory = "")
+  
+  list_of_sets = list(
+    C2_KEGG = C2KEGG_df,
+    Hall = Hall_df
+  )
+  
+  list_of_gmt_files <- GeneSetMatch::convert_msigdbr_obj_to_gmt_file(list_of_sets)
+```
+
+#Running GSMGSEA protocol
+```{r echo=TRUE, results='hide'}
+
+  snyder_outputs <- list()
+  
+  for (Y in list(
+    list("Snyder_All" = Snyder_DESEQ)
+  )) {
+    X = Y[[1]]
+    p <- X$deseq2
+    fc <- X$log2FoldChange
+    entrezid <- X$ENTREZID
+    
+    snyder_gene_list <- (1 - p) * sign(fc)
+    names(snyder_gene_list) <- as.character(entrezid)
+    
+    snyder_gene_list = sort(snyder_gene_list, decreasing = TRUE)
+    snyder_gene_list = snyder_gene_list[!duplicated(names(snyder_gene_list))]
+    head(snyder_gene_list, n = 5)
+    
+    for (i in list_of_gmt_files) {
+      #print(i)
+      res <-
+        GeneSetMatch::GSMGSEA(
+          gene_list = snyder_gene_list,
+          theGoFile = i,
+          pval = 0.05,
+          verbose = FALSE
+        )
+      snyder_outputs[[names(Y)]][[i]] <-
+        res 
+    }
+    snyder_outputs[[names(Y)]]$orig_matrix <- X[]
+  }
+  
+  summary(snyder_outputs$Snyder_All)
+```
+
+#DE Heatmaps for all .gmt files
+```{r  out.width='100%'}
+#knitr::opts_chunk$set(fig.width=8, fig.height=8) 
+  
+  GeneSetMatch::GSM.Heatmaps(snyder_outputs, verbose = FALSE, pdftofile = FALSE)
+  
+```
+

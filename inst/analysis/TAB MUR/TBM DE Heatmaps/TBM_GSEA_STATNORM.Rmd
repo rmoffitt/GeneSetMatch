@@ -1,0 +1,131 @@
+---
+title: "TBM_sc_GSEA.Rmd"
+author: "Lucie Chrastecka"
+date: '2022-07-26'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+Package Library
+```{r}
+library(BBmisc) #for normalize
+library(msigdbr)
+library(clusterProfiler)
+library(AnnotationDbi)
+library(BiocParallel)
+
+```
+
+
+Add normalized stat to Tab_mur GSEA orig_matrix
+```{r}
+TBM <- readRDS("./TabulaMuris_LLB.Rds")
+
+TBM_GSEA <- TBM$GSEA$default
+
+TBM_GSEA$microglia$orig_matrix$statnorm <- BBmisc::normalize(TBM_GSEA$microglia$orig_matrix$stat, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")
+TBM_GSEA$microglia$orig_matrix <- na.omit(TBM_GSEA$microglia$orig_matrix)
+
+
+TBM_GSEA$lung$orig_matrix$statnorm <- BBmisc::normalize(TBM_GSEA$lung$orig_matrix$stat, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")
+TBM_GSEA$lung$orig_matrix <- na.omit(TBM_GSEA$lung$orig_matrix)
+
+TBM_GSEA$hepatocyte$orig_matrix$statnorm <- BBmisc::normalize(TBM_GSEA$hepatocyte$orig_matrix$stat, method = "range", range = c(0, 1), margin = 1L, on.constant = "quiet")
+TBM_GSEA$hepatocyte$orig_matrix <- na.omit(TBM_GSEA$hepatocyte$orig_matrix)
+
+head(TBM_GSEA$lung$orig_matrix)
+head(TBM_GSEA$microglia$orig_matrix)
+head(TBM_GSEA$hepatocyte$orig_matrix)
+
+
+saveRDS(TBM_GSEA, "./TBM_GSEA.Rds")
+
+```
+
+
+
+LOADING IN MATRIXES AND GMT LISTS
+```{r}
+
+TBM_FAM <- Mice_find_allmarkers
+list_of_gmt_files <- readRDS("./list_of_gmt_files.rds")
+
+head(TBM_FAM)
+
+names(TBM_FAM)[7] <- paste("SYMBOL")
+names(TBM_FAM)[2] <- paste("log2FoldChange")
+TBM_FAM$ENTREZID <- MouseSYM2MouseENT(rownames(TBM_FAM))
+row.names(TBM_FAM) <- NULL
+#TBM_FAM$log2FoldChange <- BBmisc::normalize(TBM_FAM$log2FoldChange, method = "range", range = c(-1, 1), margin = 1L, on.constant = "quiet")
+TBM_FAM <- na.omit(TBM_FAM)
+TBM_FAM$ENTREZID <- as.integer(TBM_FAM$ENTREZID)
+
+head(TBM_FAM)
+
+print(list_of_gmt_files)
+```
+
+Making GSEA friendly Lists for moth normalized and FAM 
+```{r}
+#Tabula Muris Find All Markers Vector
+TM_F <- TBM_FAM[,c(2,8)]
+head(TM_F)
+rownames(TM_F) <- TM_F[,2]
+TM_F$ENTREZID <- NULL
+TM_F <- as.matrix(TM_F)
+head(TM_F[,1])
+
+#Tabula Muris Stat-Norm Vector
+TM_N <- TBM_FAM[,c(2,8)]
+head(TM_N)
+rownames(TM_N) <- TM_N[,2]
+TM_N$statnorm <- BBmisc::normalize(TM_N$log2FoldChange, method = "range", range = c(-1, 1), margin = 1L, on.constant = "quiet")
+TM_N$ENTREZID <- NULL
+TM_N$log2FoldChange <- NULL
+TM_N <- as.matrix(TM_N)
+head(TM_N[,1])
+```
+
+
+GSEA
+```{r}
+
+TBM_FAM_outputs <- list()
+
+for(Y in list(list("TBM_FAM" = TBM_FAM))
+              
+){
+  X = Y[[1]]
+  p <- X$pct.1
+  fc <- X$log2FoldChange      
+  entrezid <- X$ENTREZID
+  
+  TBM_gene_list <- (1 - p) *sign(fc) 
+  names(TBM_gene_list) <- as.character(entrezid)
+  
+  TBM_gene_list = sort(TBM_gene_list, decreasing = TRUE)
+  TBM_gene_list = TBM_gene_list[!duplicated(names(TBM_gene_list))]
+  head(TBM_gene_list, n = 5)
+  
+  for(i in list_of_gmt_files){
+    print(i)
+    res <- ODISGSEA(gene_list = TBM_gene_list, theGoFile = i, pval = 0.05)
+    TBM_FAM_outputs[[names(Y)]][[i]] <- res ## need to structure outputs correctly
+  }
+  TBM_FAM_outputs[[names(Y)]]$orig_matrix <- X[]  
+}
+
+summary(TBM_FAM_outputs)
+head(TBM_FAM_outputs$TBM_FAM$`./myHall.gmt`$Results)
+
+saveRDS(TBM_FAM_outputs, "./TBM_FAM_GSEA_outputs.rds")
+```
+
+OG Heatmaps
+```{r}
+library(genefilter)
+library(gplots)
+ODIS.Heatmaps(TBM_FAM_GSEA_outputs)
+
+```

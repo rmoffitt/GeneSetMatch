@@ -1,0 +1,116 @@
+---
+title: "GSM_Snyder_DESEQ2.Rmd"
+author: "Lucie Chrastecka"
+date: "2/18/2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+#This markdown uses full_Snyder mouse data to perform a differential expression analysis. The tool used for this step is DeSeq2, and the protocol is performed on the entire dataset as well as just the organoid subset. Results are saved as .rds files, and used in the subsequent pathway enrichment analytical step.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+DATA
+```{r}
+full_Snyder <- GeneSetMatch::full_Snyder # this doesn't load
+full_Snyder$ex <- as.matrix(full_Snyder$ex)
+snyder_readcounts <- full_Snyder$ex
+
+#row.names(snyder_readcounts) <- full_Snyder$featInfo$ENSEMBL
+```
+
+Create FeatInfo so that we have all types of GeneIDs
+```{r}
+library(biomaRt)
+
+SnyderMouseGenes <- full_Snyder$featInfo$ENSEMBL
+tmp_snyder <- MouseENS2MouseENT(SnyderMouseGenes)
+head(tmp_snyder)
+#tmp_snyder <- lapply(tmp_snyder,as.character)
+summary(tmp_snyder)
+head(tmp_snyder)
+str(tmp_snyder)
+tmp_snyder <- as.data.frame(tmp_snyder)
+
+full_Snyder$featInfo <- as.data.frame(full_Snyder$featInfo)
+full_Snyder$featInfo <- merge(full_Snyder$featInfo, tmp_snyder)
+summary(full_Snyder$featInfo)
+head(full_Snyder$featInfo)
+```
+
+#DESEQ2 
+```{r}
+
+deseq_2 <- runDESeq2_indFilterActive(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status`)
+print(summary(deseq_2))
+df1 <- as.data.frame(deseq_2$test)
+df1 <- df1[-c(0, 1, 3:4, 6)]
+df1 <- tibble::rownames_to_column(df1, "GeneID")
+colnames(df1)[3] <- "deseq2"
+
+deseq_2_cooks_off <- runDESeq2_indFilterDeactiveCooksOff(snyder_readcounts, full_Snyder$sampInfo$`hnf4a status`)
+print(summary(deseq_2_cooks_off))
+df2 <- as.data.frame(deseq_2_cooks_off$test)
+df2 <- df2[-c(0, 1:4)]
+df2 <- df2[-c(0, 2)]
+df2 <- tibble::rownames_to_column(df2, "GeneID")
+colnames(df2)[2] <- "deseq2 cooks off"
+
+
+#ALL Snyder_DESEQ SUMMARY TABLE
+
+Snyder_DESEQ <- merge(df1, df2, by = "GeneID")
+names(Snyder_DESEQ)[names(Snyder_DESEQ)=="GeneID"] <- "ENSEMBL"
+Snyder_DESEQ <- merge(Snyder_DESEQ, full_Snyder$featInfo)
+head(Snyder_DESEQ)
+
+saveRDS(Snyder_DESEQ, "./Snyder_DESEQ.rds")
+#REPEAT FOR OTHER DE METHODS AND BUILD A MATRIX IF DESIRED
+```
+
+
+#DESEQ2 ONLY ORGANOIDS
+```{r}
+
+#TRIMMING ONLY ORGANOIDS
+idx = which(full_Snyder$sampInfo$tissue == "organoid")
+snyder_readcounts_org = full_Snyder$ex[,idx]
+str(snyder_readcounts_org)
+head(snyder_readcounts_org)
+
+snyder_samps_org = full_Snyder$sampInfo[idx,]
+str(snyder_samps_org)
+head(snyder_samps_org)
+
+rownames(snyder_readcounts_org) = make.names(rownames(snyder_readcounts_org), unique=TRUE)
+
+
+#DESEQ2
+
+deseq_2 <- runDESeq2_indFilterActive(snyder_readcounts_org, snyder_samps_org$`hnf4a status`)
+print(summary(deseq_2))
+df1 <- as.data.frame(deseq_2$test)
+df1 <- df1[-c(0, 1, 3:4, 6)]
+df1 <- tibble::rownames_to_column(df1, "GeneID")
+colnames(df1)[3] <- "deseq2"
+
+deseq_2_cooks_off <- runDESeq2_indFilterDeactiveCooksOff(snyder_readcounts_org, snyder_samps_org$`hnf4a status`)
+print(summary(deseq_2_cooks_off))
+df2 <- as.data.frame(deseq_2_cooks_off$test)
+df2 <- df2[-c(0, 1:4)]
+df2 <- df2[-c(0, 2)]
+df2 <- tibble::rownames_to_column(df2, "GeneID")
+colnames(df2)[2] <- "deseq2 cooks off"
+
+
+#ALL Snyder_DESEQ_org SUMMARY TABLE
+
+Snyder_DESEQ_org <- merge(df1, df2, by = "GeneID")
+names(Snyder_DESEQ_org)[names(Snyder_DESEQ_org)=="GeneID"] <- "ENSEMBL"
+Snyder_DESEQ_org <- merge(Snyder_DESEQ_org, full_Snyder$featInfo)
+head(Snyder_DESEQ_org)
+
+saveRDS(Snyder_DESEQ_org, "./Snyder_DESEQ_org.rds")
+```

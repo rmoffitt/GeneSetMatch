@@ -1,0 +1,50 @@
+---
+title: "GSM_LLB_NMF"
+author: "Lucie Chrastecka"
+date: '2022-06-01'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+This markdown demonstrates how to perform rank = 3 NMF protocol on unmixed Liver, Lung, Brain RNA-Seq data. The result of the deconvolution are stored as an .rds file which is subsequently used in the GSMGSEA pathway enrishment analysis step. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+DATA - load in liver lung brain dataset
+```{r}
+LLBnew <- `LLB Data`
+head(LLBnew)
+str(LLBnew)
+LLBnew$ex <- as.matrix(LLBnew$ex)
+head(LLBnew$ex)
+str(LLBnew$ex)
+LLBnew_readcounts <- LLBnew$ex
+```
+
+
+NMF - perform 3 vector NMF 
+```{r}
+LLBnew_readcounts <- as.data.frame(LLBnew_readcounts)
+head(LLBnew_readcounts)
+
+LLB_non_zero_matrix <- LLBnew_readcounts
+LLB_non_zero_matrix <- as.matrix(LLB_non_zero_matrix)
+LLB_non_zero_matrix[LLB_non_zero_matrix<1] <- 0.1; LLB_non_zero_matrix
+
+head(LLB_non_zero_matrix)
+
+set.seed(1234)
+LLB_nmf_JAN <- nmf(x = LLB_non_zero_matrix, rank = 3, method = 'brunet') # if not transposed, runs immediately, then just take non-transposed h matrix
+
+w <- t(coef(LLB_nmf_JAN))
+dim(w)
+head(w)
+
+h <- basis(LLB_nmf_JAN)
+dim(h)
+head(h)
+
+saveRDS(h, "./LLB_NMF_JAN.rds")
+```

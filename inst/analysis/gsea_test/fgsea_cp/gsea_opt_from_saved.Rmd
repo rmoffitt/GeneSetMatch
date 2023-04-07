@@ -1,0 +1,106 @@
+---
+title: "gsea_opt_from_saved"
+author: "Margaret Hall"
+date: "9/20/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(msigdbr)
+library(DESeq2)
+library(clusterProfiler)
+library(DOSE)
+library(org.Mm.eg.db)
+library(fgsea)
+```
+
+
+```{r}
+#Files are saved in folder, can also be generated using test_gsea_generate_data.Rmd
+load("snyder_w.Rdata")
+load("gmt.Rdata")
+```
+
+performs gsea using clusterProfiler package and fgsea algorithm.
+```{r cp fgsea}
+load("snyder_w.Rdata")
+term2gene <- msigdbr(species = "mouse") %>%
+             dplyr::select(gs_name, entrez_gene)
+#W <- W[!duplicated(W$ENSEMBL),]
+rownames(W) <- W$ENTREZID
+W <- subset(W, select = -c(ENTREZID, ENSEMBL, SYMBOL))
+
+w.order <- W[,1]
+names(w.order) <- rownames(W)
+
+w.order <- sort(w.order, decreasing=TRUE)
+
+cpGSEA.fgsea <- clusterProfiler::GSEA(geneList = w.order,
+                                    TERM2GENE = term2gene,
+                                    maxGSSize = 2000,
+                                    scoreType = "pos",
+                                    by = "fgsea",
+                                    eps = 0,
+                                    pvalueCutoff = .99,
+                                    verbose = TRUE)
+#cpGSEA.fgsea@results
+save(cpGSEA.fgsea, file = "cpfgseaRes.Rdata", compress = TRUE)
+```
+
+performs gsea using clusterProfiler package and DOSE algorithm.
+```{r cp DOSE}
+# NOTE: Will run for a very long time generates a large file (~200MB for 1000 genes), and eats the server's resources.
+load("snyder_w.Rdata")
+term2gene <- msigdbr(species = "mouse") %>%
+             dplyr::select(gs_name, entrez_gene)
+rownames(W) <- W$ENTREZID
+W <- subset(W, select = -c(ENTREZID, ENSEMBL, SYMBOL))
+
+w.order <- W[,1]
+names(w.order) <- rownames(W)
+
+w.order <- sort(w.order, decreasing=TRUE)
+
+cpGSEA.dose <- clusterProfiler::GSEA(geneList = w.order,
+                                    TERM2GENE = term2gene,
+                                    maxGSSize = 2000,
+                                    scoreType = "pos",
+                                    by = "DOSE",
+                                    eps = 0,
+                                    pvalueCutoff = .99,
+                                    verbose = TRUE,
+                                    nPerm = 3000)
+#cpGSEA.dose@result
+save(cpGSEA.dose, file="doseRes.Rdata", compress = TRUE)
+```
+
+performs gsea using fgsea package
+```{r fgsea}
+load("snyder_w.Rdata")
+
+rownames(W) <- W$ENTREZID
+W <- subset(W, select = -c(ENTREZID, ENSEMBL, SYMBOL))
+
+w.order <- W[,1]
+names(w.order) <- rownames(W)
+
+w.order <- sort(w.order, decreasing=TRUE)
+fgsea.res <- list()
+
+for(i in list_of_gmt_files){
+  pathway <- fgsea::gmtPathways(i)
+  temp <- fgsea(pathways = pathway, 
+                   stats    = w.order,
+                   minSize  = 15,
+                   #scoreType= "pos",
+                   maxSize  = 500)
+  fgsea.res[[i]] <- temp
+  
+}
+save(fgsea.res, file="fgseaRes.Rdata")
+#head(fgsea.res[order(pval), ])
+```
+
+

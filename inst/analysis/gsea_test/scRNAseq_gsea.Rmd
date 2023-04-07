@@ -1,0 +1,326 @@
+---
+title: "scRNAseq ordering"
+author: "Margaret Hall"
+date: "11/17/2021"
+output: html_document
+---
+
+fc between clusters
+1 if in FAM, 0 if not -- :(, but worth trying
+random
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+library(Seurat)
+library(harmony)
+
+p0 <- F # set fgsea gseaParam = 0, else uses default of 1
+```
+
+```{r}
+load("~/ODIS2/data/tabula_liver.Robj", verbose = T)
+liver <- UpdateSeuratObject(tiss)
+liver$tissue <- "Liver"
+liver <- NormalizeData(liver)
+hepatocytes <- subset(liver, subset = cell_ontology_class == "hepatocyte")
+
+load("~/ODIS2/data/tabula_lung.Robj", verbose = T)
+lung <- UpdateSeuratObject(tiss)
+lung$tissue <- "Lung"
+lung <- NormalizeData(lung)
+endothelia <- subset(lung, subset = cell_ontology_class == "lung endothelial cell")
+
+load("~/ODIS2/data/tabula_brainMyeloid.Robj", verbose = T)
+brain <- UpdateSeuratObject(tiss)
+brain$tissue <- "brain"
+brain <- NormalizeData(brain)
+microglia <- subset(brain, subset = cell_ontology_class == "microglial cell")
+
+rm(tiss)
+
+all <- merge(hepatocytes, c(endothelia, microglia), merge.data = TRUE)
+rm(hepatocytes, liver, endothelia, lung, brain, microglia)
+gc()
+```
+
+
+```{r }
+all <- FindVariableFeatures(all)
+all <- ScaleData(all)
+all <- RunPCA(all, verbose = FALSE)
+#all <- RunUMAP(all, dims = 1:n, 
+#               reduction = "pca",
+#               n.neighbors = 50, 
+#               min.dist = .5)
+#DimPlot(all, group.by = "cell_ontology_class")
+
+all <- RunHarmony(object = all,
+                  reduction = "pca",
+                  dims.use = 1:18,
+                  group.by.vars = c("mouse.id"),
+                  plot_convergence = TRUE)
+
+
+ElbowPlot(all, reduction = "harmony")
+
+n = 15 #dims = 1:n
+all <- FindNeighbors(all, dims = 1:n, reduction = "harmony")
+all <- FindClusters(all, resolution = 0.010, verbose = FALSE, reduction = "harmony")
+all <- RunUMAP(all, dims = 1:n, 
+               reduction = "harmony",
+               n.neighbors = 50, 
+               min.dist = .5)
+all <- RunTSNE(all, dims = 1:n, reduction = "harmony")
+DimPlot(all, label = TRUE)
+DimPlot(all, group.by = "tissue")
+DimPlot(all, group.by = "cell_ontology_class")
+DimPlot(all, group.by = "mouse.id")
+DimPlot(all, label = TRUE, reduction = "tsne")
+DimPlot(all, group.by = "tissue", reduction = "tsne")
+
+
+all <- CellCycleScoring(object = all, g2m.features = cc.genes$g2m.genes, s.features = cc.genes$s.genes)
+DimPlot(all, group.by = "Phase", reduction = "umap")
+```
+
+
+```{r}
+Idents(all) <- "cell_ontology_class"
+
+maxMarkers <- FindAllMarkers(object = all, logfc.threshold = 0, max.cells.per.ident = 500, min.pct = 0)#, min.diff.pct = 0)
+defaultMarkers <- FindAllMarkers(all)
+#save(markers, file = "markers.Rdata", compress = T)
+#save(all, file = "all.Rdata", compress = T)
+```
+
+```{r add FAM scores to lists}
+allGenes <- data.frame(gene = rownames(all@assays$RNA@data), avg_log2FC = 0)
+# Creates four scores for each brain, lung and liver.
+# maxFAM --> FindAllMarkers returning the most genes possible (logfc.threshold = 0)
+# defaultFAM --> FindAllMarkers with default settings
+# allMaxFAM --> rbinds 0 for all genes in assay that do not appear in maxFAM
+# allDefaultFAM --> rbinds 0 for all genes in assay that do not appear in defaultFAM
+
+
+brain <- list()
+brain$maxFAM <- maxMarkers[maxMarkers$cluster == "microglial cell", c("gene", "avg_log2FC")]
+
+brain$defaultFAM <- defaultMarkers[defaultMarkers$cluster == "microglial cell", c("gene", "avg_log2FC")]
+
+geneNotIn <- allGenes[!(allGenes$gene %in% brain$maxFAM$gene),]
+brain$allMaxFAM <- rbind(brain$maxFAM, geneNotIn)
+
+geneNotIn <- allGenes[!(allGenes$gene %in% brain$defaultFAM$gene),]
+brain$allDefaultFAM <- rbind(brain$defaultFAM, geneNotIn)
+
+# ------------------------------
+
+lung <- list()
+lung$maxFAM <- maxMarkers[maxMarkers$cluster == "lung endothelial cell", c("gene", "avg_log2FC")]
+
+lung$defaultFAM <- defaultMarkers[defaultMarkers$cluster == "lung endothelial cell", c("gene", "avg_log2FC")]
+
+geneNotIn <- allGenes[!(allGenes$gene %in% lung$maxFAM$gene),]
+lung$allMaxFAM <- rbind(lung$maxFAM, geneNotIn)
+
+geneNotIn <- allGenes[!(allGenes$gene %in% lung$defaultFAM$gene),]
+lung$allDefaultFAM <- rbind(lung$defaultFAM, geneNotIn)
+
+# --------------------------------
+
+liver <- list()
+liver$maxFAM <- maxMarkers[maxMarkers$cluster == "hepatocyte", c("gene", "avg_log2FC")]
+
+liver$defaultFAM <- defaultMarkers[defaultMarkers$cluster == "hepatocyte", c("gene", "avg_log2FC")]
+
+geneNotIn <- allGenes[!(allGenes$gene %in% liver$maxFAM$gene),]
+liver$allMaxFAM <- rbind(liver$maxFAM, geneNotIn)
+
+geneNotIn <- allGenes[!(allGenes$gene %in% liver$defaultFAM$gene),]
+liver$allDefaultFAM <- rbind(liver$defaultFAM, geneNotIn)
+
+# ------------------------------
+
+#rm(maxMarkers)
+#rm(defaultMarkers)
+```
+
+```{r}
+fc <- function(SeuratObject){
+  
+  print("Creating average of clusters")
+  #reduce entire Seurat Object down to an average column for each cluster.
+  assay <- GetAssayData(SeuratObject)
+  genelist <- data.frame(matrix(nrow = nrow(assay), ncol = 0))
+  for(i in unique(Idents(SeuratObject))){
+    i_Ident <- assay[,which(Idents(SeuratObject) == i)]
+    print(ncol(i_Ident))
+    genelist[,i] <- apply(i_Ident, 1, mean)
+  }
+  
+  print("Calculating log2fc on averaged clusters")
+  #run LogFC on averaged columns
+  log2fc <- matrix(nrow = nrow(genelist), ncol = ncol(genelist))
+
+  for (group in 1:ncol(genelist)) {
+    curCol <- genelist[,group] # column of interest for this loop
+    otherCol <- genelist[,-c(group)] # all columns that are not that one
+    otherCol <- apply(otherCol, 1, mean) # take average of other columns
+      
+    log2fc[,group] <- log2(curCol/otherCol)
+  }
+  rownames(log2fc) <- rownames(assay)
+  
+  # will return instances of -inf, inf, and NaN
+  # -Inf --> 0/real number
+  # Inf --> real number/0
+  # NaN --> 0/0
+  # Set NaN to 0, however -Inf and/or Inf are problematic to fgsea
+  log2fc[is.na(log2fc)] <- 0
+  
+  # want -Inf to be very negative, and Inf to be very positive
+  # Scale data to have known bounds on scores on non Inf numbers, then assign -Inf to min and Inf to max
+  tmp <- log2fc
+  #tmp[is.infinite(tmp)] <- NA
+  #tmp[is.infinite(tmp)] <- 0
+  #tmp <- scale(tmp)
+
+  #tmp <- scales::rescale(tmp, to = c(-10,10))
+  tmp[tmp <= -5] <- -5
+  tmp[tmp >= 5] <- 5
+
+  log2fc <- tmp
+  
+  return(log2fc)
+}
+
+
+FCres <- fc(all)
+
+
+brain$fc <- data.frame(gene = row.names(FCres), avg_log2FC = FCres[,1])
+lung$fc <- data.frame(gene = row.names(FCres), avg_log2FC = FCres[,2])
+liver$fc <- data.frame(gene = row.names(FCres), avg_log2FC = FCres[,3])
+
+rm(FCres)
+```
+
+```{r}
+liver$random <- data.frame(gene = allGenes$gene, avg_log2FC = runif(nrow(allGenes), min = -1, max = 1))
+lung$random <- liver$random
+brain$random <- liver$random
+```
+
+
+```{r}
+#source("~/LibMoff/R/cluster_wrapper.R")
+#library(org.Mm.eg.db)
+
+#res <- cluster_wrapper(brain$fc, gene_col = "gene", stat_col = "avg_log2FC", species = "mouse", category = "C8")
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+# ----
+msigdbrToGMT <- function(msigOut){
+  pathway_names <- unique(msigOut$gs_name)
+  gene_sets_listed <- NULL
+  temp <- NULL
+  count <- 1
+  cur_path <- msigOut$gs_name[1]
+  for(i in 1:nrow(msigOut)){
+    if(msigOut$gs_name[i] == cur_path){
+      temp <- c(temp, msigOut$entrez_gene[i])
+    }
+    else{
+      gene_sets_listed[[count]] <- temp
+      count <- count + 1 
+      temp <- msigOut$entrez_gene[i]
+      cur_path <- msigOut$gs_name[i]
+    }
+    
+    if(i == nrow(msigOut)){
+      gene_sets_listed[[count]] <- temp
+    }
+  }
+  names(gene_sets_listed) <- pathway_names
+  return(gene_sets_listed)
+}
+# ---
+
+c8Pathways <- msigdbr::msigdbr(species = "Mus musculus", category = "C8")
+pathways <- msigdbrToGMT(c8Pathways)
+#pathways <- msigdbr::msigdbr(species = "Mus musculus")
+#pathways <- msigdbrToGMT(pathways)
+
+```
+
+```{r}
+library(org.Mm.eg.db)
+
+fgseaForCluster <- function(cluster, pathways, gseaParam = 1){
+  res <- list()
+  for(score in names(cluster)){
+    print(score)
+    
+    tmp <- cluster[[score]]
+    stat <- tmp$avg_log2FC
+    names(stat) = clusterProfiler::bitr(tmp$gene,
+                                                fromType = "SYMBOL", toType = "ENTREZID",
+                                                OrgDb = org.Mm.eg.db)$ENTREZID
+    stat = stat[-which(is.na(names(stat)))]
+  
+  
+    res[[score]] <- fgsea::fgseaMultilevel(pathways = pathways, 
+                                  stats = stat,
+                                  eps = 0, 
+                                  #nPermSimple = nPermSimple, 
+                                  scoreType = "pos",
+                                  nproc = 2,
+                                  gseaParam = gseaParam
+                                )
+    res[[score]] <- res[[score]][order(res[[score]]$NES, decreasing = TRUE)]
+  }
+  
+  return(res)
+}
+
+if(p0){
+  brainRes <- fgseaForCluster(brain, pathways, gseaParam = 0)
+  lungRes <- fgseaForCluster(lung, pathways, gseaParam = 0)
+  liverRes <- fgseaForCluster(liver, pathways, gseaParam = 0)
+} else{
+  brainRes <- fgseaForCluster(brain, pathways)
+  lungRes <- fgseaForCluster(lung, pathways)
+  liverRes <- fgseaForCluster(liver, pathways)
+}
+```
+
+```{r}
+if(p0){
+  saveRDS(brainRes, file = "scBrainRes_p0.RDS")
+  saveRDS(lungRes, file = "scLungRes_p0.RDS")
+  saveRDS(liverRes, file = "scLiverRes_p0.RDS")
+} else{
+  saveRDS(brainRes, file = "scBrainRes.RDS")
+  saveRDS(lungRes, file = "scLungRes.RDS")
+  saveRDS(liverRes, file = "scLiverRes.RDS")
+}
+
+saveRDS(brain, file = "scBrain.RDS")
+saveRDS(lung, file = "scLung.RDS")
+saveRDS(liver, file = "scLiver.RDS")
+
+saveRDS(pathways, file = "mouseC8.RDS")
+```
+
+
