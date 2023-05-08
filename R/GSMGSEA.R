@@ -1,4 +1,5 @@
-#' Modified GSEA function, this function performs fgsea on the results of previous Differential Expression analysis, Dimensional Reductions and/or other appropriate filtering steps.
+#' Modified GSEA function, this function performs fgsea on the results of previous Differential Expression analysis, Dimensional Reductions and/or other appropriate filtering steps. in this function we reference the fgsea protocol Citation: G. Korotkevich, V. Sukhov, A. Sergushichev. Fast gene set enrichment analysis. bioRxiv (2019),
+#' doi:10.1101/060012
 #' @export
 #' @import qusage
 #' @import dplyr
