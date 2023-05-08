@@ -1,6 +1,8 @@
 # DESeq2
 #' This function takes raw count data and performs Differential Expression Analysis of sequence count data based on negative binomial distribution 
 #' default: independentFiltering = TRUE, cooksCut = .99 quantile of the F(p, m-p)
+#' #' We reference DESeq2 for this protocol. Citation:  Love, M.I., Huber, W., Anders, S. Moderated estimation of fold change and dispersion for RNA-seq
+#' data with DESeq2 Genome Biology 15(12):550 (2014)
 #' @export
 #' @import biomaRt
 #' @import dplyr
