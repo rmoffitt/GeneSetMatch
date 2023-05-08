@@ -1,5 +1,8 @@
 # QUASISeq QL
 #' This function identifies differentially expressed genes in RNA-seq count data using quasi-Poisson or quasi-negative binomial models.
+#' We reference QuasiSeq in this protocol. Citation: Lund S, Qu L, Bhasavanich K, Marschner I, R Core Team (2022). _QuasiSeq: Analyzing RNA
+#' Sequencing Count Tables Using Quasi-Likelihood_. R package version 1.0-11-0,
+#' <https://CRAN.R-project.org/package=QuasiSeq>.
 #' @export
 #' @import biomaRt
 #' @import dplyr
