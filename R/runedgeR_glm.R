@@ -1,5 +1,7 @@
 # EdgeR GLM
 #' This function takes raw count data and performs Differential Analysis of sequence count data via a General Linear Modeling analysis on specified condition
+#' We reference EdgeR in this protocol. Citation: Robinson MD, McCarthy DJ and Smyth GK (2010). edgeR: a Bioconductor package for differential
+#' expression analysis of digital gene expression data. Bioinformatics 26, 139-140
 #' @export
 #' @import biomaRt
 #' @import dplyr
