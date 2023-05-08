@@ -1,4 +1,4 @@
-#' Updating formatting of experiment files
+#' Updating formatting of experiment files 
 #'
 #' \code{Moff2Summarized} will convert a standard list format experiment file into a SummarizedExperiment
 #'
