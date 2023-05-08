@@ -1,4 +1,4 @@
-#' Menu of all the GeneSetMatch tools for Differential Expression Analysis
+#' Menu of all the GeneSetMatch tools for Differential Expression Analysis 
 ################################# edgeR  ################################
 #' @export
 #' @import biomaRt
