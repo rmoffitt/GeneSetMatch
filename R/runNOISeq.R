@@ -1,5 +1,8 @@
-# NOISeq
+# NOISe
 #' This function performs analysis on RNA-seq expression data or other similar kind of data. Exploratory plots to evaluate saturation, count distribution, expression per chromosome, type of detected features, features length, etc. Differential expression between two experimental conditions with no parametric assumptions.
+#' We reference NOISeq in this protocol. Citation: Tarazona, S., Furio-Tari, P., Turra, D., Di Pietro, A., Nueda, M.J., Ferrer, A., & Conesa, A.
+#' (2015). Data quality aware analysis of differential expression in RNA-seq with NOISeq R/Bioc
+#' package. Nucleic Acids Research.
 #' @export
 #' @import biomaRt
 #' @import dplyr
